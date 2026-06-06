@@ -158,6 +158,17 @@ function PhotoGallery() {
     setHoveredNeighborIdx(null);
   };
 
+  // ── Custom albums ──────────────────────────────────────────────────
+  interface CustomAlbum {
+    id: number;
+    name: string;
+    photoIds: number[];
+  }
+
+  const [customAlbums, setCustomAlbums] = useState<CustomAlbum[]>([]);
+  const [newAlbumName, setNewAlbumName] = useState("");
+  const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
+
   const goToPhoto = (idx: number) => {
     setLightboxIndex(Math.max(0, Math.min(idx, filteredPhotos.length - 1)));
     setHoveredNeighborIdx(null);
@@ -939,10 +950,13 @@ function PhotoGallery() {
           )}
           {sidebarTab === "albums" && (
             <>
-              <div className="pg-sidebar-section">Albums</div>
-              {ALBUMS.map((album) => (
-                <div key={album.id} className={`pg-sidebar-item ${selectedAlbum === album.id ? "active" : ""}`} onClick={() => setSelectedAlbum(album.id)}>
-                  <FolderOpen size={16} /><span>{album.name}</span><span className="pg-sidebar-item-count">{album.count}</span>
+              <div className="pg-sidebar-section">Albums <button className="pg-sidebar-add-btn" onClick={() => setCreateAlbumOpen(true)} title="New album"><span className="pg-sidebar-add-icon">+</span></button></div>
+              {customAlbums.length === 0 && (
+                <div className="pg-sidebar-empty">No albums yet — click + to create one</div>
+              )}
+              {customAlbums.map((album) => (
+                <div key={album.id} className="pg-sidebar-item" onClick={() => setSelectedAlbum(album.id)}>
+                  <FolderOpen size={16} /><span>{album.name}</span><span className="pg-sidebar-item-count">{album.photoIds.length}</span>
                 </div>
               ))}
             </>
@@ -1080,6 +1094,41 @@ function PhotoGallery() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Create Album Dialog ─────────────────────────────────────────── */}
+      <Dialog open={createAlbumOpen} onOpenChange={setCreateAlbumOpen}>
+        <DialogContent className="pg-dialog-create-album">
+          <div className="pg-dialog-title">Create Album</div>
+          <input
+            className="pg-dialog-input"
+            type="text"
+            placeholder="Album name..."
+            value={newAlbumName}
+            onChange={(e) => setNewAlbumName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newAlbumName.trim()) {
+                const newAlbum: CustomAlbum = { id: Date.now(), name: newAlbumName.trim(), photoIds: [] };
+                setCustomAlbums(prev => [...prev, newAlbum]);
+                setNewAlbumName("");
+                setCreateAlbumOpen(false);
+                setSidebarTab("albums");
+              }
+            }}
+            autoFocus
+          />
+          <div className="pg-dialog-actions">
+            <button className="pg-dialog-btn-cancel" onClick={() => { setCreateAlbumOpen(false); setNewAlbumName(""); }}>Cancel</button>
+            <button className="pg-dialog-btn-create" onClick={() => {
+              if (!newAlbumName.trim()) return;
+              const newAlbum: CustomAlbum = { id: Date.now(), name: newAlbumName.trim(), photoIds: [] };
+              setCustomAlbums(prev => [...prev, newAlbum]);
+              setNewAlbumName("");
+              setCreateAlbumOpen(false);
+              setSidebarTab("albums");
+            }}>Create</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Context menu ─────────────────────────────────────────────────── */}
       {contextMenu && (
         <>
@@ -1142,15 +1191,35 @@ function PhotoGallery() {
                     />
                   </div>
                   <div className="pg-submenu-list">
-                    {MOCK_ALBUMS.filter(a => a.name.toLowerCase().includes(albumSearch.toLowerCase())).map(album => (
-                      <div key={album.id} className="pg-ctx-item">
-                        <FolderOpen size={13} /> {album.name}
-                        <span style={{ marginLeft: "auto", fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>{album.count}</span>
-                      </div>
-                    ))}
-                    {MOCK_ALBUMS.filter(a => a.name.toLowerCase().includes(albumSearch.toLowerCase())).length === 0 && (
-                      <div style={{ padding: "8px 12px", fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center" }}>No albums found</div>
+                    {customAlbums.filter(a => a.name.toLowerCase().includes(albumSearch.toLowerCase())).length > 0 ? (
+                      customAlbums.filter(a => a.name.toLowerCase().includes(albumSearch.toLowerCase())).map(album => (
+                        <div
+                          key={album.id}
+                          className="pg-ctx-item"
+                          onClick={() => {
+                            setCustomAlbums(prev =>
+                              prev.map(a =>
+                                a.id === album.id
+                                  ? { ...a, photoIds: a.photoIds.includes(contextMenu!.photo.id) ? a.photoIds : [...a.photoIds, contextMenu!.photo.id] }
+                                  : a
+                              )
+                            );
+                            setContextMenu(null);
+                          }}
+                        >
+                          <FolderOpen size={13} /> {album.name}
+                          <span style={{ marginLeft: "auto", fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>{album.photoIds.length}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: "8px 12px", fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center" }}>No albums yet</div>
                     )}
+                    <div
+                      className="pg-ctx-item pg-ctx-add-album"
+                      onClick={() => { setContextMenu(null); setCreateAlbumOpen(true); }}
+                    >
+                      <span className="pg-sidebar-add-icon">+</span> Create new album
+                    </div>
                   </div>
                 </div>
               </div>

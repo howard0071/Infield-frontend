@@ -177,3 +177,117 @@
   flex-direction: column;
   overflow: hidden;
 }
+
+/* ── Create Album Dialog ───────────────────── */
+.pg-dialog-create-album {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 300px;
+  padding: 24px;
+  background: var(--orch-bg-2) !important;
+  border: 1px solid var(--orch-border-soft) !important;
+  border-radius: var(--shell-main-radius, 12px) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.pg-dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--orch-fg-1);
+}
+
+.pg-dialog-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--orch-fg-1);
+  background: var(--orch-bg-1);
+  border: 1px solid var(--orch-border-soft);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.pg-dialog-input:focus {
+  border-color: var(--orch-acc-hi);
+}
+
+.pg-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pg-dialog-btn-cancel,
+.pg-dialog-btn-create {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pg-dialog-btn-cancel {
+  color: var(--orch-fg-2);
+  background: var(--orch-bg-1);
+  border: 1px solid var(--orch-border-soft);
+}
+
+.pg-dialog-btn-cancel:hover {
+  background: var(--orch-bg-3);
+}
+
+.pg-dialog-btn-create {
+  color: #fff;
+  background: var(--orch-acc-hi);
+  border: none;
+}
+
+.pg-dialog-btn-create:hover {
+  opacity: 0.85;
+}
+
+/* ── Sidebar add button & empty state ─────── */
+.pg-sidebar-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--orch-border-soft);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.pg-sidebar-add-btn:hover {
+  opacity: 1;
+  background: var(--orch-bg-2);
+}
+
+.pg-sidebar-add-icon {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--orch-fg-2);
+}
+
+.pg-sidebar-empty {
+  padding: 12px 8px;
+  font-size: 11px;
+  color: var(--orch-fg-3);
+  text-align: center;
+}
+
+/* ── Context menu "add album" item ───────── */
+.pg-ctx-add-album {
+  color: var(--orch-acc-hi) !important;
+  border-top: 1px solid var(--orch-border-soft);
+  margin-top: 4px;
+  padding-top: 8px !important;
+}
