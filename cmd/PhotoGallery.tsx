@@ -495,19 +495,37 @@ function PhotoGallery() {
         }
 
         /* ── Body — flex row, scrollable children ─────────────────────────────── */
-        .pg-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+        .pg-body {
+          display: flex; flex: 1; min-height: 0; overflow: hidden;
+          /* DEBUG: remove border once scroll confirmed working */
+          /* border: 2px dashed magenta; */
+        }
 
         /* ── Sidebar — flat section inside the card surface ─────────────────── */
         .pg-sidebar {
           width: 200px; flex-shrink: 0;
           display: flex; flex-direction: column;
           overflow-y: auto;
+          /* DEBUG: border-left: 3px solid cyan; */
           transition: width 200ms, opacity 200ms;
           border-right: 1px solid var(--orch-line-1);
           padding-top: 8px;
         }
         .pg-sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; }
         .pg-sidebar-tabs { display: flex; padding: 8px 8px 0; gap: 2px; }
+
+        /* ── Main content area ─────────────────────────────────────────────── */
+        .pg-content {
+          display: flex; flex: 1; min-width: 0; min-height: 0;
+          overflow: hidden;
+        }
+        .pg-main {
+          flex: 1; min-width: 0; min-height: 0; max-height: 100%;
+          overflow-y: auto; padding: 16px; background: var(--orch-bg-0);
+        }
+        .pg-main::-webkit-scrollbar { width: 6px; }
+        .pg-main::-webkit-scrollbar-track { background: transparent; }
+        .pg-main::-webkit-scrollbar-thumb { background: var(--orch-bg-4); border-radius: 3px; }
         .pg-sidebar-tab {
           flex: 1; padding: 5px 0; text-align: center; font-size: 11px; font-weight: 600;
           color: var(--orch-fg-3); border-radius: var(--orch-r-sm) var(--orch-r-sm) 0 0;
