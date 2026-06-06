@@ -432,7 +432,7 @@ function PhotoGallery() {
           --heros-editor-font: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body, #root { width: 100%; height: 100%; background: var(--shell-outer-bg); }
+        html, body, #root { width: 100%; height: 100%; background: var(--shell-outer-bg); overflow: hidden; }
         body { color: var(--orch-fg-1); font-family: var(--heros-editor-font); }
 
         .pg-shell {

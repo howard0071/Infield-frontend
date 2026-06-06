@@ -29,16 +29,17 @@
 
 /* ── Shell / card layer ─────────────────────────────────────────────── */
 .notes-backup-shell {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   width: 100%;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: stretch;
   padding: 14px;
   padding-left: 0;
   background: var(--shell-outer-bg, #08080a);
   gap: 0;
+  overflow: hidden;
 }
 
 /* ── Left page navigation rail ──────────────────────────────────────── */
