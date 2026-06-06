@@ -351,7 +351,10 @@ function PhotoGallery() {
   };
 
   return (
-    <div className="pg-shell">
+    <div className="notes-backup-shell">
+      <div className="notes-backup-shell__inner">
+        <div className="heros-glass-card notes-unified-card">
+          <div className="notes-unified-card__editor">
       <style>{`
         :root {
           --shell-outer-bg: #0b0b0b;
@@ -444,12 +447,13 @@ function PhotoGallery() {
         /* ── Body ──────────────────────────────────────────────────────────── */
         .pg-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
-        /* ── Sidebar ─────────────────────────────────────────────────────────── */
+        /* ── Sidebar — flat section inside the card surface ─────────────────── */
         .pg-sidebar {
-          width: 200px; flex-shrink: 0; background: var(--orch-bg-1);
-          border-right: 1px solid var(--orch-line-1);
+          width: 200px; flex-shrink: 0;
           display: flex; flex-direction: column; overflow-y: auto;
           transition: width 200ms, opacity 200ms;
+          border-right: 1px solid var(--orch-line-1);
+          padding-top: 8px;
         }
         .pg-sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; }
         .pg-sidebar-tabs { display: flex; padding: 8px 8px 0; gap: 2px; }
@@ -1072,6 +1076,9 @@ function PhotoGallery() {
           </div>
         </>
       )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
