@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Match existing --orch-* CSS variable palette ───────────────────── */
+  --color-orch-bg-0: #0c0c0e;
+  --color-orch-bg-1: #111116;
+  --color-orch-bg-2: #18181f;
+  --color-orch-bg-3: #222230;
+  --color-orch-bg-4: #2e2e40;
+
+  --color-orch-fg-1: #eeeeef;
+  --color-orch-fg-2: #b0b0bc;
+  --color-orch-fg-3: #686880;
+  --color-orch-fg-4: #44445a;
+
+  --color-orch-line-1: rgba(255, 255, 255, 0.08);
+  --color-orch-line-2: rgba(255, 255, 255, 0.05);
+
+  --color-orch-acc-hi: #3b6fff;
+  --color-orch-acc-lo: rgba(59, 111, 255, 0.18);
+
+  --color-shell-outer-bg: #08080a;
+
+  /* ── Border radius tokens ──────────────────────────────────────────────── */
+  --radius-orch-sm: 4px;
+  --radius-orch-md: 7px;
+  --radius-orch-lg: 10px;
+}
