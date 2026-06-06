@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import "./src/index.css";
 import {
+  Dialog,
+  DialogContent,
+} from "./src/components/ui/dialog";
+import {
   Search,
   Grid3x3,
   List,
@@ -123,8 +127,6 @@ function PhotoGallery() {
   const [contextSubmenu, setContextSubmenu] = useState<{ x: number; y: number } | null>(null);
   const [albumSearch, setAlbumSearch] = useState("");
   const submenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const lightboxRef = useRef<HTMLDivElement>(null);
 
   const [photos, setPhotos] = useState<Photo[]>(ALL_PHOTOS);
 
@@ -682,19 +684,7 @@ function PhotoGallery() {
         .pg-statusbar span { display: flex; align-items: center; gap: 4px; }
         .pg-statusbar svg { width: 12px; height: 12px; stroke-width: 1.5; }
 
-        /* ══════════════════════════════════════════════════════════════════════
-           LIGHTBOX
-        ══════════════════════════════════════════════════════════════════════ */
-        .pg-lightbox {
-          position: fixed; inset: 0;
-          background: rgba(8, 9, 11, 0.75);
-          backdrop-filter: blur(18px) saturate(1.4);
-          -webkit-backdrop-filter: blur(18px) saturate(1.4);
-          z-index: 100;
-          display: flex; flex-direction: column;
-          animation: pg-fadein 200ms ease;
-        }
-        @keyframes pg-fadein { from { opacity: 0; backdrop-filter: blur(0px); } to { opacity: 1; backdrop-filter: blur(18px) saturate(1.4); } }
+        /* ── Lightbox (inner styles preserved — Dialog handles overlay/animation) */
 
         /* Close button — circle with X at top right */
         .pg-lb-close {
@@ -930,10 +920,10 @@ function PhotoGallery() {
       </div>
 
       {/* ── Lightbox ───────────────────────────────────────────────────── */}
-      {lightboxOpen && (
-        <div
-          className="pg-lightbox"
-          ref={lightboxRef}
+      <Dialog open={lightboxOpen} onOpenChange={(open) => !open && closeLightbox()}>
+        <DialogContent
+          fullscreen
+          className="bg-transparent shadow-none border-0 p-0"
           onWheel={handleWheel}
         >
           {/* Close button — circle + X, top right */}
@@ -986,8 +976,8 @@ function PhotoGallery() {
               );
             })}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Context menu ─────────────────────────────────────────────────── */}
       {contextMenu && (
