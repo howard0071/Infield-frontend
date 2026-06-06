@@ -359,7 +359,7 @@ function PhotoGallery() {
     <div className="notes-backup-shell">
       {/* ── Left page navigation rail ────────────────────────────────── */}
       <nav className={`page-nav-rail ${railCollapsed ? "collapsed" : ""}`}>
-        {/* Collapse toggle */}
+        {/* Collapse toggle — stays visible at top when expanded */}
         <div
           className="page-nav-rail__item page-nav-rail__toggle"
           onClick={() => setRailCollapsed(!railCollapsed)}
@@ -377,44 +377,45 @@ function PhotoGallery() {
         <div
           className={`page-nav-rail__item ${activePage === "gallery" ? "active" : ""}`}
           onClick={() => setActivePage("gallery")}
-          title="Gallery"
         >
-          <Image />
+          <Image size={18} />
+          <span className="page-nav-rail__label">Gallery</span>
         </div>
         <div
           className={`page-nav-rail__item ${activePage === "audio" ? "active" : ""}`}
           onClick={() => setActivePage("audio")}
-          title="Audio"
         >
-          <Music />
+          <Music size={18} />
+          <span className="page-nav-rail__label">Audio</span>
         </div>
         <div
           className={`page-nav-rail__item ${activePage === "notes" ? "active" : ""}`}
           onClick={() => setActivePage("notes")}
-          title="Notes"
         >
-          <FileText />
+          <FileText size={18} />
+          <span className="page-nav-rail__label">Notes</span>
         </div>
         <div
           className={`page-nav-rail__item ${activePage === "search" ? "active" : ""}`}
           onClick={() => setActivePage("search")}
-          title="Search"
         >
-          <Search />
+          <Search size={18} />
+          <span className="page-nav-rail__label">Search</span>
         </div>
         <div
           className={`page-nav-rail__item ${activePage === "graph" ? "active" : ""}`}
           onClick={() => setActivePage("graph")}
-          title="Knowledge Graph"
         >
-          <Network />
+          <Network size={18} />
+          <span className="page-nav-rail__label">Knowledge Graph</span>
         </div>
 
         <div className="page-nav-rail__divider" />
         <div className="page-nav-rail__spacer" />
 
         <div className="page-nav-rail__item" title="Settings">
-          <SlidersHorizontal />
+          <SlidersHorizontal size={18} />
+          <span className="page-nav-rail__label">Settings</span>
         </div>
       </nav>
 
