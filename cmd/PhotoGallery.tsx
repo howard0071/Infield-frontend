@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import "./src/index.css";
-import {
-  Dialog,
-  DialogContent,
-} from "./src/components/ui/dialog";
+import { Dialog, DialogContent } from "./src/components/ui/dialog";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "./src/components/ui/hover-card";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./src/components/ui/tooltip";
 import {
   Search,
   Grid3x3,
@@ -367,6 +366,7 @@ function PhotoGallery() {
   };
 
   return (
+    <TooltipProvider delayDuration={300}>
     <div className="notes-backup-shell">
       {/* ── Left page navigation rail ────────────────────────────────── */}
       <nav className={`page-nav-rail ${railCollapsed ? "collapsed" : ""}`}>
@@ -1235,6 +1235,7 @@ function PhotoGallery() {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 }
 
