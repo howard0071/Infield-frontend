@@ -494,13 +494,14 @@ function PhotoGallery() {
           cursor: pointer; outline: none;
         }
 
-        /* ── Body ──────────────────────────────────────────────────────────── */
+        /* ── Body — flex row, scrollable children ─────────────────────────────── */
         .pg-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
 
         /* ── Sidebar — flat section inside the card surface ─────────────────── */
         .pg-sidebar {
           width: 200px; flex-shrink: 0;
-          display: flex; flex-direction: column; overflow-y: auto;
+          display: flex; flex-direction: column;
+          overflow-y: auto;
           transition: width 200ms, opacity 200ms;
           border-right: 1px solid var(--orch-line-1);
           padding-top: 8px;
