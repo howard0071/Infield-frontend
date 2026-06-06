@@ -38,7 +38,7 @@ const DialogContent = React.forwardRef<
       ref={ref}
       className={cn(
         fullscreen
-          ? "fixed inset-0 z-50 w-screen h-screen max-w-[100vw] max-h-[100vh] rounded-none border-0"
+          ? "fixed inset-0 z-50 w-screen h-screen max-w-[100vw] max-h-[100vh] rounded-none border-0 flex flex-col overflow-hidden"
           : "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-[10px] border border-[var(--orch-line-1)] bg-[var(--orch-bg-1)] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)]",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
