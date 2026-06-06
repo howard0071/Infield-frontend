@@ -82,7 +82,7 @@ const MOCK_ALBUMS = [
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type ViewMode = "grid" | "list";
+type ViewMode = "grid" | "list" | "dense";
 type SidebarTab = "all" | "albums" | "date";
 
 interface Photo {
@@ -631,6 +631,8 @@ function PhotoGallery() {
         /* ── Masonry grid ──────────────────────────────────────────────────── */
         .pg-masonry { columns: 5 160px; column-gap: 4px; }
         .pg-masonry-item { break-inside: avoid; margin-bottom: 4px; display: inline-block; width: 100%; }
+        .pg-masonry-dense { columns: 8 80px; column-gap: 2px; }
+        .pg-masonry-dense .pg-masonry-item { margin-bottom: 2px; }
         .pg-thumb {
           position: relative; border-radius: var(--orch-r-md); overflow: hidden;
           cursor: pointer; background: var(--orch-bg-2);
@@ -812,6 +814,7 @@ function PhotoGallery() {
         <button className="pg-toolbar-btn"><SlidersHorizontal size={15} /> Adjust</button>
         <div className="pg-toolbar-sep" />
         <button className={`pg-toolbar-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => setViewMode("grid")} title="Grid view"><Grid3x3 size={15} /></button>
+        <button className={`pg-toolbar-btn ${viewMode === "dense" ? "active" : ""}`} onClick={() => setViewMode("dense")} title="Dense grid"><Grid3x3 size={15} style={{ transform: "scale(0.8)" }} /></button>
         <button className={`pg-toolbar-btn ${viewMode === "list" ? "active" : ""}`} onClick={() => setViewMode("list")} title="List view"><List size={15} /></button>
         <div className="pg-toolbar-sep" />
         <div className="pg-search-wrap">
@@ -877,6 +880,14 @@ function PhotoGallery() {
                   </div>
                 ))}
               </div>
+            ) : viewMode === "dense" ? (
+              <div className="pg-masonry pg-masonry-dense">
+                {filteredPhotos.map((photo, idx) => (
+                  <div key={photo.id} className="pg-masonry-item">
+                    <GridThumb photo={photo} idx={idx} />
+                  </div>
+                ))}
+              </div>
             ) : (
               filteredPhotos.map((photo) => <ListRow key={photo.id} photo={photo} />)
             )}
@@ -916,7 +927,7 @@ function PhotoGallery() {
       <div className="pg-statusbar">
         <span><Image size={12} /> {filteredPhotos.length} items</span>
         {selectedMonths.size > 0 && <span><Calendar size={12} /> {selectedMonths.size} month{selectedMonths.size > 1 ? "s" : ""} selected</span>}
-        <span style={{ marginLeft: "auto" }}>Sorted by {sortBy}</span>
+        <span style={{ marginLeft: "auto" }}>{viewMode === "dense" ? "Dense" : viewMode === "grid" ? "Grid" : "List"} · Sorted by {sortBy}</span>
       </div>
 
       {/* ── Lightbox ───────────────────────────────────────────────────── */}
