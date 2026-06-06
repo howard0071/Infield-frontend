@@ -18,9 +18,7 @@ const TooltipContent = React.forwardRef<
       className
     )}
     {...props}
-  >
-    <TooltipPrimitive.Arrow className="fill-white" />
-  </TooltipPrimitive.Content>
+  />
 ));
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
