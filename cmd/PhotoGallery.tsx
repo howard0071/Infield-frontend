@@ -32,6 +32,9 @@ import {
   ZoomOut,
   ChevronDown,
   CheckSquare,
+  Music,
+  FileText,
+  Network,
 } from "lucide-react";
 
 // ─── Sample photo data (varied aspect ratios for masonry) ─────────────────────
@@ -119,6 +122,7 @@ function PhotoGallery() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activePage, setActivePage] = useState<"gallery" | "audio" | "notes" | "search" | "graph">("gallery");
   const [dateFilterOpen, setDateFilterOpen] = useState(true);
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
   const [hoveredNeighborIdx, setHoveredNeighborIdx] = useState<number | null>(null);
@@ -352,6 +356,52 @@ function PhotoGallery() {
 
   return (
     <div className="notes-backup-shell">
+      {/* ── Left page navigation rail ────────────────────────────────── */}
+      <nav className="page-nav-rail">
+        <div
+          className={`page-nav-rail__item ${activePage === "gallery" ? "active" : ""}`}
+          onClick={() => setActivePage("gallery")}
+          title="Gallery"
+        >
+          <Image />
+        </div>
+        <div
+          className={`page-nav-rail__item ${activePage === "audio" ? "active" : ""}`}
+          onClick={() => setActivePage("audio")}
+          title="Audio"
+        >
+          <Music />
+        </div>
+        <div
+          className={`page-nav-rail__item ${activePage === "notes" ? "active" : ""}`}
+          onClick={() => setActivePage("notes")}
+          title="Notes"
+        >
+          <FileText />
+        </div>
+        <div
+          className={`page-nav-rail__item ${activePage === "search" ? "active" : ""}`}
+          onClick={() => setActivePage("search")}
+          title="Search"
+        >
+          <Search />
+        </div>
+        <div
+          className={`page-nav-rail__item ${activePage === "graph" ? "active" : ""}`}
+          onClick={() => setActivePage("graph")}
+          title="Knowledge Graph"
+        >
+          <Network />
+        </div>
+
+        <div className="page-nav-rail__divider" />
+        <div className="page-nav-rail__spacer" />
+
+        <div className="page-nav-rail__item" title="Settings">
+          <SlidersHorizontal />
+        </div>
+      </nav>
+
       <div className="notes-backup-shell__inner">
         <div className="heros-glass-card notes-unified-card">
           <div className="notes-unified-card__editor">

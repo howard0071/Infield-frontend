@@ -36,7 +36,63 @@
   justify-content: center;
   align-items: stretch;
   padding: 14px;
+  padding-left: 0;
   background: var(--shell-outer-bg, #08080a);
+  gap: 0;
+}
+
+/* ── Left page navigation rail ──────────────────────────────────────── */
+.page-nav-rail {
+  width: 52px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  gap: 4px;
+  background: transparent;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.page-nav-rail__item {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--orch-fg-3);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  position: relative;
+}
+
+.page-nav-rail__item:hover {
+  background: var(--orch-bg-2);
+  color: var(--orch-fg-1);
+}
+
+.page-nav-rail__item.active {
+  background: var(--orch-bg-2);
+  color: var(--orch-acc-hi);
+}
+
+.page-nav-rail__item svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.6;
+}
+
+.page-nav-rail__divider {
+  width: 24px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 4px 0;
+}
+
+.page-nav-rail__spacer {
+  flex: 1;
 }
 
 .notes-backup-shell__inner {
