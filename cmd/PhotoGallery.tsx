@@ -123,6 +123,7 @@ function PhotoGallery() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [activePage, setActivePage] = useState<"gallery" | "audio" | "notes" | "search" | "graph">("gallery");
+  const [railCollapsed, setRailCollapsed] = useState(false);
   const [dateFilterOpen, setDateFilterOpen] = useState(true);
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
   const [hoveredNeighborIdx, setHoveredNeighborIdx] = useState<number | null>(null);
@@ -357,7 +358,22 @@ function PhotoGallery() {
   return (
     <div className="notes-backup-shell">
       {/* ── Left page navigation rail ────────────────────────────────── */}
-      <nav className="page-nav-rail">
+      <nav className={`page-nav-rail ${railCollapsed ? "collapsed" : ""}`}>
+        {/* Collapse toggle */}
+        <div
+          className="page-nav-rail__item page-nav-rail__toggle"
+          onClick={() => setRailCollapsed(!railCollapsed)}
+          title={railCollapsed ? "Expand rail" : "Collapse rail"}
+        >
+          <ChevronLeft
+            size={16}
+            style={{
+              transform: railCollapsed ? "rotate(0deg)" : "rotate(180deg)",
+              transition: "transform 200ms",
+            }}
+          />
+        </div>
+
         <div
           className={`page-nav-rail__item ${activePage === "gallery" ? "active" : ""}`}
           onClick={() => setActivePage("gallery")}

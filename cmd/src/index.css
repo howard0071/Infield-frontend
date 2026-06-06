@@ -54,6 +54,14 @@
   background: transparent;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
+  transition: width 200ms;
+}
+.page-nav-rail.collapsed {
+  width: 0;
+}
+
+.page-nav-rail__toggle {
+  flex-shrink: 0;
 }
 
 .page-nav-rail__item {
