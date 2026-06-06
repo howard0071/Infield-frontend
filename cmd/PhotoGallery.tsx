@@ -370,64 +370,102 @@ function PhotoGallery() {
     <div className="notes-backup-shell">
       {/* ── Left page navigation rail ────────────────────────────────── */}
       <nav className={`page-nav-rail ${railCollapsed ? "collapsed" : ""}`}>
-        {/* Collapse toggle — stays visible at top when expanded */}
-        <div
-          className="page-nav-rail__item page-nav-rail__toggle"
-          onClick={() => setRailCollapsed(!railCollapsed)}
-          title={railCollapsed ? "Expand rail" : "Collapse rail"}
-        >
-          <ChevronLeft
-            size={16}
-            style={{
-              transform: railCollapsed ? "rotate(0deg)" : "rotate(180deg)",
-              transition: "transform 200ms",
-            }}
-          />
-        </div>
+        {/* Collapse toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="page-nav-rail__item page-nav-rail__toggle"
+              onClick={() => setRailCollapsed(!railCollapsed)}
+            >
+              <ChevronLeft
+                size={16}
+                style={{
+                  transform: railCollapsed ? "rotate(0deg)" : "rotate(180deg)",
+                  transition: "transform 200ms",
+                }}
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">{railCollapsed ? "Expand rail" : "Collapse rail"}</TooltipContent>
+        </Tooltip>
 
-        <div
-          className={`page-nav-rail__item ${activePage === "gallery" ? "active" : ""}`}
-          onClick={() => setActivePage("gallery")}
-        >
-          <Image size={18} />
-          <span className="page-nav-rail__label">Gallery</span>
-        </div>
-        <div
-          className={`page-nav-rail__item ${activePage === "audio" ? "active" : ""}`}
-          onClick={() => setActivePage("audio")}
-        >
-          <Music size={18} />
-          <span className="page-nav-rail__label">Audio</span>
-        </div>
-        <div
-          className={`page-nav-rail__item ${activePage === "notes" ? "active" : ""}`}
-          onClick={() => setActivePage("notes")}
-        >
-          <FileText size={18} />
-          <span className="page-nav-rail__label">Notes</span>
-        </div>
-        <div
-          className={`page-nav-rail__item ${activePage === "search" ? "active" : ""}`}
-          onClick={() => setActivePage("search")}
-        >
-          <Search size={18} />
-          <span className="page-nav-rail__label">Search</span>
-        </div>
-        <div
-          className={`page-nav-rail__item ${activePage === "graph" ? "active" : ""}`}
-          onClick={() => setActivePage("graph")}
-        >
-          <Network size={18} />
-          <span className="page-nav-rail__label">Knowledge Graph</span>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "gallery" ? "active" : ""}`}
+              onClick={() => setActivePage("gallery")}
+            >
+              <Image size={18} />
+              <span className="page-nav-rail__label">Gallery</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Gallery</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "audio" ? "active" : ""}`}
+              onClick={() => setActivePage("audio")}
+            >
+              <Music size={18} />
+              <span className="page-nav-rail__label">Audio</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Audio</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "notes" ? "active" : ""}`}
+              onClick={() => setActivePage("notes")}
+            >
+              <FileText size={18} />
+              <span className="page-nav-rail__label">Notes</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Notes</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "search" ? "active" : ""}`}
+              onClick={() => setActivePage("search")}
+            >
+              <Search size={18} />
+              <span className="page-nav-rail__label">Search</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Search</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "graph" ? "active" : ""}`}
+              onClick={() => setActivePage("graph")}
+            >
+              <Network size={18} />
+              <span className="page-nav-rail__label">Knowledge Graph</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Knowledge Graph</TooltipContent>
+        </Tooltip>
 
         <div className="page-nav-rail__divider" />
         <div className="page-nav-rail__spacer" />
 
-        <div className="page-nav-rail__item" title="Settings">
-          <SlidersHorizontal size={18} />
-          <span className="page-nav-rail__label">Settings</span>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="page-nav-rail__item">
+              <SlidersHorizontal size={18} />
+              <span className="page-nav-rail__label">Settings</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Settings</TooltipContent>
+        </Tooltip>
       </nav>
 
       <div className="notes-backup-shell__inner">
@@ -905,18 +943,44 @@ function PhotoGallery() {
       </div>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
-<div className="pg-toolbar">
-        <button className="pg-toolbar-btn" onClick={() => setSidebarOpen(!sidebarOpen)} title="Toggle sidebar">
-          <ChevronLeft size={15} style={{ transform: sidebarOpen ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 200ms" }} />
-        </button>
+      <div className="pg-toolbar">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className="pg-toolbar-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <ChevronLeft size={15} style={{ transform: sidebarOpen ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 200ms" }} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">{sidebarOpen ? "Hide sidebar" : "Show sidebar"}</TooltipContent>
+        </Tooltip>
         <div className="pg-toolbar-sep" />
         <button className="pg-toolbar-btn"><ChevronLeft size={15} /> Back</button>
         <button className="pg-toolbar-btn"><Edit size={15} /> Edit & Create</button>
         <button className="pg-toolbar-btn"><SlidersHorizontal size={15} /> Adjust</button>
         <div className="pg-toolbar-sep" />
-        <button className={`pg-toolbar-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => setViewMode("grid")} title="Grid view"><Grid3x3 size={15} /></button>
-        <button className={`pg-toolbar-btn ${viewMode === "dense" ? "active" : ""}`} onClick={() => setViewMode("dense")} title="Dense grid"><Grid3x3 size={15} style={{ transform: "scale(0.8)" }} /></button>
-        <button className={`pg-toolbar-btn ${viewMode === "list" ? "active" : ""}`} onClick={() => setViewMode("list")} title="List view"><List size={15} /></button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className={`pg-toolbar-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => setViewMode("grid")}>
+              <Grid3x3 size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">Grid view</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className={`pg-toolbar-btn ${viewMode === "dense" ? "active" : ""}`} onClick={() => setViewMode("dense")}>
+              <Grid3x3 size={15} style={{ transform: "scale(0.8)" }} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">Dense grid</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className={`pg-toolbar-btn ${viewMode === "list" ? "active" : ""}`} onClick={() => setViewMode("list")}>
+              <List size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">List view</TooltipContent>
+        </Tooltip>
         <div className="pg-toolbar-sep" />
         <div className="pg-search-wrap">
           <Search size={13} />
