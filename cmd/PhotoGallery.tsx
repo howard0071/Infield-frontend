@@ -1,5 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
+import "./src/index.css";
+import { Dialog, DialogContent } from "./src/components/ui/dialog";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "./src/components/ui/hover-card";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "./src/components/ui/tooltip";
 import {
   Search,
   Grid3x3,
@@ -26,8 +30,12 @@ import {
   ZoomIn,
   ZoomOut,
   ChevronDown,
-  ChevronUp,
+  CheckSquare,
+  Music,
+  FileText,
+  Network,
 } from "lucide-react";
+import { AudioPage } from "./src/components/AudioPage";
 
 // ─── Sample photo data (varied aspect ratios for masonry) ─────────────────────
 const ALL_PHOTOS = [
@@ -65,8 +73,19 @@ const ALBUMS = [
   { id: 5, name: "Downloads", icon: <Download size={16} />, count: 5 },
 ];
 
+const MOCK_ALBUMS = [
+  { id: 101, name: "Summer Vacation 2024", count: 42 },
+  { id: 102, name: "Family Gatherings", count: 28 },
+  { id: 103, name: "Work Projects", count: 15 },
+  { id: 104, name: "Food & Dining", count: 33 },
+  { id: 105, name: "Travel", count: 67 },
+  { id: 106, name: "Screenshots", count: 19 },
+  { id: 107, name: "Birthdays", count: 11 },
+  { id: 108, name: "Landscapes", count: 24 },
+];
+
 // ─── Types ────────────────────────────────────────────────────────────────────
-type ViewMode = "grid" | "list";
+type ViewMode = "grid" | "list" | "dense";
 type SidebarTab = "all" | "albums" | "date";
 
 interface Photo {
@@ -85,13 +104,12 @@ function groupByMonth(photos: Photo[]) {
   const groups: { label: string; key: string; photos: Photo[] }[] = [];
   const map: Record<string, Photo[]> = {};
   for (const p of photos) {
-    // date format: "Month DD, YYYY" → extract "Month YYYY"
     const parts = p.date.split(" ");
     const key = `${parts[0]} ${parts[2]}`;
     if (!map[key]) { map[key] = []; groups.push({ label: key, key, photos: map[key] }); }
     map[key].push(p);
   }
-  return groups; // newest first
+  return groups;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -104,12 +122,22 @@ function PhotoGallery() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activePage, setActivePage] = useState<"gallery" | "audio" | "notes" | "search" | "graph">("gallery");
+  const [railCollapsed, setRailCollapsed] = useState(false);
   const [dateFilterOpen, setDateFilterOpen] = useState(true);
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
+  const [hoveredNeighborIdx, setHoveredNeighborIdx] = useState<number | null>(null);
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<number>>(new Set());
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; photo: Photo } | null>(null);
+  const [contextSubmenu, setContextSubmenu] = useState<{ x: number; y: number } | null>(null);
+  const [albumSearch, setAlbumSearch] = useState("");
+  const submenuTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const allMonthGroups = groupByMonth(ALL_PHOTOS);
+  const [photos, setPhotos] = useState<Photo[]>(ALL_PHOTOS);
 
-  const filteredPhotos = ALL_PHOTOS.filter((p) =>
+  const allMonthGroups = groupByMonth(photos);
+
+  const filteredPhotos = photos.filter((p) =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   ).filter((p) => {
     if (selectedMonths.size === 0) return true;
@@ -118,20 +146,36 @@ function PhotoGallery() {
     return selectedMonths.has(key);
   });
 
-  const monthGroups = groupByMonth(filteredPhotos);
-
   const openLightbox = (photo: Photo) => {
     const idx = filteredPhotos.findIndex((p) => p.id === photo.id);
     setLightboxIndex(idx);
     setLightboxOpen(true);
+    setHoveredNeighborIdx(null);
   };
 
-  const closeLightbox = () => setLightboxOpen(false);
+  const closeLightbox = () => {
+    setLightboxOpen(false);
+    setHoveredNeighborIdx(null);
+  };
 
-  const prevPhoto = () =>
-    setLightboxIndex((i) => (i > 0 ? i - 1 : filteredPhotos.length - 1));
-  const nextPhoto = () =>
-    setLightboxIndex((i) => (i < filteredPhotos.length - 1 ? i + 1 : 0));
+  // ── Custom albums ──────────────────────────────────────────────────
+  interface CustomAlbum {
+    id: number;
+    name: string;
+    photoIds: number[];
+  }
+
+  const [customAlbums, setCustomAlbums] = useState<CustomAlbum[]>([]);
+  const [newAlbumName, setNewAlbumName] = useState("");
+  const [createAlbumOpen, setCreateAlbumOpen] = useState(false);
+
+  const goToPhoto = (idx: number) => {
+    setLightboxIndex(Math.max(0, Math.min(idx, filteredPhotos.length - 1)));
+    setHoveredNeighborIdx(null);
+  };
+
+  const prevPhoto = () => goToPhoto(lightboxIndex - 1);
+  const nextPhoto = () => goToPhoto(lightboxIndex + 1);
 
   const toggleMonth = (key: string) => {
     setSelectedMonths((prev) => {
@@ -143,6 +187,98 @@ function PhotoGallery() {
   };
 
   const clearDateFilter = () => setSelectedMonths(new Set());
+
+  // ─── Keyboard + scroll navigation ──────────────────────────────────────────
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") prevPhoto();
+      else if (e.key === "ArrowRight") nextPhoto();
+      else if (e.key === "Escape") closeLightbox();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [lightboxOpen, lightboxIndex]);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (!lightboxOpen) return;
+    if (e.deltaY > 30) nextPhoto();
+    else if (e.deltaY < -30) prevPhoto();
+  };
+
+  // ─── Right-click context menu ───────────────────────────────────────────────
+  const openContextMenu = (e: React.MouseEvent, photo: Photo) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, photo });
+  };
+
+  const closeContextMenu = () => setContextMenu(null);
+
+  const contextAction = (action: string, photo: Photo) => {
+    closeContextMenu();
+    switch (action) {
+      case "open":
+        openLightbox(photo);
+        break;
+      case "select":
+        setSelectedPhotos(prev => {
+          const next = new Set(prev);
+          if (next.has(photo.id)) next.delete(photo.id);
+          else next.add(photo.id);
+          return next;
+        });
+        break;
+      case "copy_image":
+        // Copy image to clipboard via fetch + canvas
+        fetch(photo.url).then(r => r.blob()).then(blob => {
+          navigator.clipboard.write([
+            new ClipboardItem({ "image/png": blob })
+          ]);
+        }).catch(() => {
+          // Fallback: copy URL
+          navigator.clipboard.writeText(photo.url);
+        });
+        break;
+      case "copy_path":
+        navigator.clipboard.writeText(photo.url);
+        break;
+      case "favorite":
+        // Toggle favorite (simulated — just flip the local state)
+        setPhotos(prev => prev.map(p => p.id === photo.id ? { ...p, rating: p.rating === 5 ? 0 : 5 } : p));
+        break;
+      case "delete":
+        setPhotos(prev => prev.filter(p => p.id !== photo.id));
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Close context menu on outside click / scroll / escape
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => closeContextMenu();
+    window.addEventListener("scroll", close, { passive: true });
+    window.addEventListener("keydown", close);
+    return () => {
+      window.removeEventListener("scroll", close);
+      window.removeEventListener("keydown", close);
+    };
+  }, [contextMenu]);
+
+  // ─── Neighboring thumbnails ─────────────────────────────────────────────────
+  // Show5 thumbnails:2 before, current, 2 after
+  const getNeighborThumbs = () => {
+    const thumbs: { photo: Photo; idx: number }[] = [];
+    for (let offset = -2; offset <= 2; offset++) {
+      const targetIdx = lightboxIndex + offset;
+      if (targetIdx >= 0 && targetIdx < filteredPhotos.length) {
+        thumbs.push({ photo: filteredPhotos[targetIdx], idx: targetIdx });
+      }
+    }
+    return thumbs;
+  };
 
   // ─── Star rating ─────────────────────────────────────────────────────────────
   const StarRating = ({ rating }: { rating: number }) => (
@@ -161,7 +297,11 @@ function PhotoGallery() {
 
   // ─── List view row ───────────────────────────────────────────────────────────
   const ListRow = ({ photo }: { photo: Photo }) => (
-    <div className="pg-list-row" onClick={() => openLightbox(photo)}>
+    <div
+      className="pg-list-row"
+      onClick={() => openLightbox(photo)}
+      onContextMenu={(e) => openContextMenu(e, photo)}
+    >
       <img src={photo.url} alt={photo.name} className="pg-list-thumb" />
       <div className="pg-list-info">
         <span className="pg-list-name">{photo.name}</span>
@@ -179,33 +319,159 @@ function PhotoGallery() {
 
   // ─── Grid thumbnail ──────────────────────────────────────────────────────────
   const getSizeClass = (idx: number): string => {
-    const pattern = ["pg-thumb-tall", "pg-thumb-wide", "pg-thumb-std", "pg-thumb-std",
-      "pg-thumb-std", "pg-thumb-tall", "pg-thumb-wide", "pg-thumb-std",
-      "pg-thumb-std", "pg-thumb-tall", "pg-thumb-std", "pg-thumb-wide",
-      "pg-thumb-std", "pg-thumb-std", "pg-thumb-tall", "pg-thumb-wide",
-      "pg-thumb-std", "pg-thumb-tall", "pg-thumb-wide", "pg-thumb-std",
-      "pg-thumb-std", "pg-thumb-tall", "pg-thumb-std", "pg-thumb-wide"];
+    const pattern = [
+      "pg-thumb-tall","pg-thumb-wide","pg-thumb-std","pg-thumb-std",
+      "pg-thumb-std","pg-thumb-tall","pg-thumb-wide","pg-thumb-std",
+      "pg-thumb-std","pg-thumb-tall","pg-thumb-std","pg-thumb-wide",
+      "pg-thumb-std","pg-thumb-std","pg-thumb-tall","pg-thumb-wide",
+      "pg-thumb-std","pg-thumb-tall","pg-thumb-wide","pg-thumb-std",
+      "pg-thumb-std","pg-thumb-tall","pg-thumb-std","pg-thumb-wide",
+    ];
     return pattern[idx % pattern.length];
   };
 
-  const GridThumb = ({ photo, idx }: { photo: Photo; idx: number }) => (
-    <div className={`pg-thumb ${getSizeClass(idx)}`} onClick={() => openLightbox(photo)}>
-      <img src={photo.url} alt={photo.name} className="pg-thumb-img" />
-      <div className="pg-thumb-overlay">
-        <div className="pg-thumb-info">
-          <span className="pg-thumb-name">{photo.name}</span>
-          <span className="pg-thumb-date">{photo.date}</span>
-        </div>
-        <div className="pg-thumb-actions">
-          <Heart size={14} strokeWidth={1.5} />
-          <Share2 size={14} strokeWidth={1.5} />
+  const GridThumb = ({ photo, idx }: { photo: Photo; idx: number }) => {
+    const isSelected = selectedPhotos.has(photo.id);
+    return (
+      <div
+        className={`pg-thumb ${getSizeClass(idx)} ${isSelected ? "pg-thumb-selected" : ""}`}
+        onClick={(e) => {
+          if (e.altKey) {
+            e.preventDefault();
+            setSelectedPhotos(prev => {
+              const next = new Set(prev);
+              if (next.has(photo.id)) next.delete(photo.id);
+              else next.add(photo.id);
+              return next;
+            });
+          } else {
+            openLightbox(photo);
+          }
+        }}
+        onContextMenu={(e) => openContextMenu(e, photo)}
+      >
+        {isSelected && <div className="pg-thumb-sel-badge" />}
+        <img src={photo.url} alt={photo.name} className="pg-thumb-img" />
+        <div className="pg-thumb-overlay">
+          <div className="pg-thumb-info">
+            <span className="pg-thumb-name">{photo.name}</span>
+            <span className="pg-thumb-date">{photo.date}</span>
+          </div>
+          <div className="pg-thumb-actions">
+            <Heart size={14} strokeWidth={1.5} />
+            <Share2 size={14} strokeWidth={1.5} />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="pg-shell">
+    <TooltipProvider delayDuration={300}>
+    <div className="notes-backup-shell">
+      {/* ── Left page navigation rail ────────────────────────────────── */}
+      <nav className={`page-nav-rail ${railCollapsed ? "collapsed" : ""}`}>
+        {/* Collapse toggle */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className="page-nav-rail__item page-nav-rail__toggle"
+              onClick={() => setRailCollapsed(!railCollapsed)}
+            >
+              <ChevronLeft
+                size={16}
+                style={{
+                  transform: railCollapsed ? "rotate(0deg)" : "rotate(180deg)",
+                  transition: "transform 200ms",
+                }}
+              />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">{railCollapsed ? "Expand rail" : "Collapse rail"}</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "gallery" ? "active" : ""}`}
+              onClick={() => setActivePage("gallery")}
+            >
+              <Image size={18} />
+              <span className="page-nav-rail__label">Gallery</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Gallery</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "audio" ? "active" : ""}`}
+              onClick={() => setActivePage("audio")}
+            >
+              <Music size={18} />
+              <span className="page-nav-rail__label">Audio</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Audio</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "notes" ? "active" : ""}`}
+              onClick={() => setActivePage("notes")}
+            >
+              <FileText size={18} />
+              <span className="page-nav-rail__label">Notes</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Notes</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "search" ? "active" : ""}`}
+              onClick={() => setActivePage("search")}
+            >
+              <Search size={18} />
+              <span className="page-nav-rail__label">Search</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Search</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "graph" ? "active" : ""}`}
+              onClick={() => setActivePage("graph")}
+            >
+              <Network size={18} />
+              <span className="page-nav-rail__label">Knowledge Graph</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Knowledge Graph</TooltipContent>
+        </Tooltip>
+
+        <div className="page-nav-rail__divider" />
+        <div className="page-nav-rail__spacer" />
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="page-nav-rail__item">
+              <SlidersHorizontal size={18} />
+              <span className="page-nav-rail__label">Settings</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Settings</TooltipContent>
+        </Tooltip>
+      </nav>
+
+      <div className="notes-backup-shell__inner">
+        <div className="heros-glass-card notes-unified-card">
+          <div className="notes-unified-card__editor">
       <style>{`
         :root {
           --shell-outer-bg: #0b0b0b;
@@ -233,29 +499,20 @@ function PhotoGallery() {
           --heros-editor-font: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body, #root { width: 100%; height: 100%; background: var(--shell-outer-bg); }
+        html, body, #root { width: 100%; height: 100%; background: var(--shell-outer-bg); overflow: hidden; }
         body { color: var(--orch-fg-1); font-family: var(--heros-editor-font); }
 
         .pg-shell {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          height: 100dvh;
-          background: var(--shell-outer-bg);
-          overflow: hidden;
+          display: flex; flex-direction: column;
+          height: 100vh; height: 100dvh;
+          background: var(--shell-outer-bg); overflow: hidden;
         }
 
         /* ── Title bar ────────────────────────────────────────────────────── */
         .pg-titlebar {
-          display: flex;
-          align-items: center;
-          height: 36px;
-          padding: 0 12px;
-          background: var(--orch-bg-1);
-          border-bottom: 1px solid var(--orch-line-1);
-          flex-shrink: 0;
-          gap: 8px;
-          user-select: none;
+          display: flex; align-items: center; height: 36px; padding: 0 12px;
+          background: var(--orch-bg-1); border-bottom: 1px solid var(--orch-line-1);
+          flex-shrink: 0; gap: 8px; user-select: none;
         }
         .pg-titlebar-title { font-size: 12px; font-weight: 600; color: var(--orch-fg-2); letter-spacing: 0.01em; }
         .pg-titlebar-spacer { flex: 1; }
@@ -304,18 +561,38 @@ function PhotoGallery() {
           cursor: pointer; outline: none;
         }
 
-        /* ── Body ──────────────────────────────────────────────────────────── */
-        .pg-body { display: flex; flex: 1; min-height: 0; overflow: hidden; }
+        /* ── Body — flex row, scrollable children ─────────────────────────────── */
+        .pg-body {
+          display: flex; flex: 1; min-height: 0; overflow: hidden;
+          /* DEBUG: remove border once scroll confirmed working */
+          /* border: 2px dashed magenta; */
+        }
 
-        /* ── Sidebar ─────────────────────────────────────────────────────────── */
+        /* ── Sidebar — flat section inside the card surface ─────────────────── */
         .pg-sidebar {
-          width: 200px; flex-shrink: 0; background: var(--orch-bg-1);
-          border-right: 1px solid var(--orch-line-1);
-          display: flex; flex-direction: column; overflow-y: auto;
+          width: 200px; flex-shrink: 0;
+          display: flex; flex-direction: column;
+          overflow-y: auto;
+          /* DEBUG: border-left: 3px solid cyan; */
           transition: width 200ms, opacity 200ms;
+          border-right: 1px solid var(--orch-line-1);
+          padding-top: 8px;
         }
         .pg-sidebar.collapsed { width: 0; opacity: 0; overflow: hidden; }
         .pg-sidebar-tabs { display: flex; padding: 8px 8px 0; gap: 2px; }
+
+        /* ── Main content area ─────────────────────────────────────────────── */
+        .pg-content {
+          display: flex; flex: 1; min-width: 0; min-height: 0;
+          overflow: hidden;
+        }
+        .pg-main {
+          flex: 1; min-width: 0; min-height: 0; max-height: 100%;
+          overflow-y: auto; padding: 16px; background: var(--orch-bg-0);
+        }
+        .pg-main::-webkit-scrollbar { width: 6px; }
+        .pg-main::-webkit-scrollbar-track { background: transparent; }
+        .pg-main::-webkit-scrollbar-thumb { background: var(--orch-bg-4); border-radius: 3px; }
         .pg-sidebar-tab {
           flex: 1; padding: 5px 0; text-align: center; font-size: 11px; font-weight: 600;
           color: var(--orch-fg-3); border-radius: var(--orch-r-sm) var(--orch-r-sm) 0 0;
@@ -338,64 +615,164 @@ function PhotoGallery() {
         .pg-sidebar-item svg { flex-shrink: 0; }
         .pg-sidebar-item-count { margin-left: auto; font-size: 11px; color: var(--orch-fg-4); font-weight: 400; }
 
-        /* ── Main content area (center + right date panel) ─────────────────── */
+        /* ── Main content area ─────────────────────────────────────────────── */
         .pg-content { display: flex; flex: 1; min-width: 0; overflow: hidden; }
-
-        /* ── Center main area ─────────────────────────────────────────────── */
         .pg-main { flex: 1; min-width: 0; overflow-y: auto; padding: 16px; background: var(--orch-bg-0); }
         .pg-main::-webkit-scrollbar { width: 6px; }
         .pg-main::-webkit-scrollbar-track { background: transparent; }
         .pg-main::-webkit-scrollbar-thumb { background: var(--orch-bg-4); border-radius: 3px; }
 
-        /* ── Date filter panel (right side) ────────────────────────────────── */
+        /* ── Date filter panel — Windows Photos vertical timeline ─────────── */
         .pg-date-panel {
-          width: 200px; flex-shrink: 0; background: var(--orch-bg-1);
+          width: 52px; flex-shrink: 0; background: var(--orch-bg-1);
           border-left: 1px solid var(--orch-line-1);
-          display: flex; flex-direction: column; overflow-y: auto;
+          display: flex; flex-direction: column;
           transition: width 200ms, opacity 200ms;
         }
         .pg-date-panel.collapsed { width: 0; opacity: 0; overflow: hidden; }
         .pg-date-panel-hdr {
-          display: flex; align-items: center; gap: 6px;
-          padding: 10px 12px 8px;
-          font-size: 11px; font-weight: 700; color: var(--orch-fg-3);
-          letter-spacing: 0.06em; text-transform: uppercase;
-          border-bottom: 1px solid var(--orch-line-1);
-          flex-shrink: 0;
+          display: none; /* Timeline header hidden — timeline self-contained */
         }
-        .pg-date-panel-hdr svg { flex-shrink: 0; }
         .pg-date-clear {
-          margin-left: auto; font-size: 10px; font-weight: 500;
-          color: var(--orch-acc-hi); cursor: pointer; text-transform: none; letter-spacing: 0;
+          display: none; /* Clear button hidden — click active dot to deselect */
         }
-        .pg-date-clear:hover { text-decoration: underline; }
-        .pg-date-yr {
-          font-size: 11px; font-weight: 700; color: var(--orch-fg-3);
-          letter-spacing: 0.04em; padding: 8px 12px 4px;
+
+        /* Vertical timeline — year labels + dots */
+        .pg-timeline {
+          flex: 1; display: flex; flex-direction: column;
+          align-items: center; padding: 12px 0; gap: 0;
+          overflow-y: auto; overflow-x: hidden;
+          position: relative;
         }
-        .pg-date-mo {
-          display: flex; align-items: center; gap: 8px;
-          padding: 6px 12px; cursor: pointer; transition: background 120ms;
-          color: var(--orch-fg-2); font-size: 12px; font-weight: 400;
+        .pg-timeline::-webkit-scrollbar { width: 0; }
+
+        /* Each month is a dot on the timeline */
+        .pg-tl-dot {
+          position: relative; display: flex; align-items: center;
+          justify-content: center; width: 100%; height: 32px;
+          cursor: pointer; z-index: 1;
         }
-        .pg-date-mo:hover { background: var(--orch-bg-2); }
-        .pg-date-mo.selected { color: var(--orch-fg-1); background: var(--orch-bg-3); }
-        .pg-date-mo-check {
-          width: 14px; height: 14px; border-radius: 3px;
-          border: 1.5px solid var(--orch-line-3); flex-shrink: 0;
+        .pg-tl-dot::before {
+          content: ""; position: absolute;
+          left: 50%; top: 0; bottom: 0;
+          width: 1px; background: var(--orch-line-2);
+          transform: translateX(-50%);
+        }
+        .pg-tl-dot:last-child::before { bottom: 50%; }
+        .pg-tl-dot:first-child::before { top: 50%; }
+
+        .pg-tl-dot-inner {
+          width: 8px; height: 8px; border-radius: 50%;
+          background: var(--orch-bg-4); border: 2px solid var(--orch-bg-1);
+          position: relative; z-index: 2;
+          transition: background150ms, transform 150ms, box-shadow 150ms;
+          box-shadow: 0 0 0 0 transparent;
+        }
+        .pg-tl-dot:hover .pg-tl-dot-inner {
+          background: var(--orch-fg-3);
+          transform: scale(1.3);
+        }
+        .pg-tl-dot.selected .pg-tl-dot-inner {
+          background: var(--orch-acc-hi);
+          transform: scale(1.4);
+          box-shadow: 0 0 0 3px rgba(59, 111, 255, 0.25);
+        }
+
+        /* Tooltip on hover */
+        .pg-tl-dot::after {
+          content: attr(title);
+          position: absolute; left: calc(100% + 10px); top: 50%;
+          transform: translateY(-50%);
+          background: rgba(20, 21, 26, 0.96);
+          backdrop-filter: blur(10px) saturate(1.4);
+          -webkit-backdrop-filter: blur(10px) saturate(1.4);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.9);
+          font-size: 11px; font-weight: 500;
+          padding: 4px 8px; border-radius: 6px;
+          white-space: nowrap; pointer-events: none;
+          opacity: 0; transition: opacity 120ms;
+          z-index: 100;
+        }
+        .pg-tl-dot:hover::after { opacity: 1; }
+
+        /* ── Context menu ─────────────────────────────────────────────────── */
+        .pg-ctx-overlay {
+          position: fixed; inset: 0; z-index: 199;
+        }
+        .pg-context-menu {
+          position: fixed; z-index: 200;
+          min-width: 188px; padding: 5px;
+          background: rgba(16, 17, 20, 0.96);
+          backdrop-filter: blur(20px) saturate(1.5);
+          -webkit-backdrop-filter: blur(20px) saturate(1.5);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 10px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+          display: flex; flex-direction: column;
+          animation: pg-ctx-in 120ms ease;
+        }
+        @keyframes pg-ctx-in {
+          from { opacity: 0; transform: scale(0.94) translateY(-4px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .pg-ctx-item {
+          display: flex; align-items: center; gap: 9px;
+          padding: 7px 10px; border-radius: 6px;
+          font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.85);
+          cursor: pointer; transition: background 100ms, color 100ms;
+        }
+        .pg-ctx-item:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,1); }
+        .pg-ctx-item svg { flex-shrink: 0; opacity: 0.7; }
+        .pg-ctx-item:hover svg { opacity: 1; }
+        .pg-ctx-sep { height: 1px; background: rgba(255,255,255,0.07); margin: 3px 6px; }
+        .pg-ctx-danger { color: rgba(255, 80, 80, 0.9); }
+        .pg-ctx-danger:hover { background: rgba(255, 50, 50, 0.1); color: rgba(255, 100, 100, 1); }
+        .pg-ctx-submenu-parent { justify-content: flex-start; gap: 9px; position: relative; }
+        .pg-submenu { display: none; }
+        .pg-submenu-visible {
+          display: block; position: absolute; left: 100%; top: 0;
+          min-width: 200px; margin-left: 2px; padding: 5px; z-index: 201;
+          background: rgba(16, 17, 20, 0.96);
+          backdrop-filter: blur(20px) saturate(1.5);
+          -webkit-backdrop-filter: blur(20px) saturate(1.5);
+          border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 10px;
+          box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .pg-submenu-search {
+          display: flex; align-items: center; gap: 7px;
+          padding: 5px 8px; margin-bottom: 4px;
+          background: rgba(255,255,255,0.04); border-radius: 6px;
+          border: 1px solid rgba(255,255,255,0.07);
+        }
+        .pg-submenu-search svg { color: rgba(255,255,255,0.4); flex-shrink: 0; }
+        .pg-submenu-search input {
+          background: none; border: none; outline: none;
+          font-size: 12px; color: rgba(255,255,255,0.85);
+          width: 100%; caret-color: var(--orch-acc-hi);
+        }
+        .pg-submenu-search input::placeholder { color: rgba(255,255,255,0.3); }
+        .pg-submenu-list { max-height: 200px; overflow-y: auto; }
+        .pg-submenu-list::-webkit-scrollbar { width: 3px; }
+        .pg-submenu-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+        /* ── Selected photo badge ─────────────────────────────────────────── */
+        .pg-thumb-selected { outline: 2px solid var(--orch-acc-hi); outline-offset: 1px; }
+        .pg-thumb-sel-badge {
+          position: absolute; top: 6px; left: 6px; z-index: 5;
+          width: 18px; height: 18px; border-radius: 50%;
+          background: var(--orch-acc-hi);
+          border: 2px solid rgba(255,255,255,0.8);
           display: flex; align-items: center; justify-content: center;
-          transition: background 120ms, border-color 120ms;
+          box-shadow: 0 2px 8px rgba(59,111,255,0.5);
         }
-        .pg-date-mo.selected .pg-date-mo-check {
-          background: var(--orch-acc-hi); border-color: var(--orch-acc-hi);
-        }
-        .pg-date-mo-check svg { width: 9px; height: 9px; stroke: #fff; stroke-width: 3; }
-        .pg-date-mo-count { margin-left: auto; font-size: 11px; color: var(--orch-fg-4); }
-        .pg-date-mo-label { flex: 1; }
 
         /* ── Masonry grid ──────────────────────────────────────────────────── */
         .pg-masonry { columns: 5 160px; column-gap: 4px; }
         .pg-masonry-item { break-inside: avoid; margin-bottom: 4px; display: inline-block; width: 100%; }
+        .pg-masonry-dense { columns: 8 80px; column-gap: 2px; }
+        .pg-masonry-dense .pg-masonry-item { margin-bottom: 2px; }
         .pg-thumb {
           position: relative; border-radius: var(--orch-r-md); overflow: hidden;
           cursor: pointer; background: var(--orch-bg-2);
@@ -449,58 +826,112 @@ function PhotoGallery() {
         .pg-statusbar span { display: flex; align-items: center; gap: 4px; }
         .pg-statusbar svg { width: 12px; height: 12px; stroke-width: 1.5; }
 
-        /* ── Lightbox ───────────────────────────────────────────────────────── */
-        .pg-lightbox {
-          position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 100;
-          display: flex; flex-direction: column; animation: pg-fadein 150ms ease;
+        /* ── Lightbox (inner styles preserved — Dialog handles overlay/animation) */
+
+        /* Close button — circle with X at top right */
+        .pg-lb-close {
+          position: absolute; top: 16px; right: 16px; z-index: 10;
+          width: 36px; height: 36px; border-radius: 50%;
+          background: rgba(255,255,255,0.06);
+          backdrop-filter: blur(12px) saturate(1.5);
+          -webkit-backdrop-filter: blur(12px) saturate(1.5);
+          border: 1px solid rgba(255,255,255,0.1);
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; transition: background 200ms, transform 200ms, border-color 200ms;
         }
-        @keyframes pg-fadein { from { opacity: 0; } to { opacity: 1; } }
-        .pg-lightbox-hdr {
-          display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 44px;
-          background: rgba(11,11,11,0.95); border-bottom: 1px solid var(--orch-line-1); flex-shrink: 0;
+        .pg-lb-close:hover {
+          background: rgba(255,255,255,0.14);
+          border-color: rgba(255,255,255,0.22);
+          transform: scale(1.08);
         }
-        .pg-lightbox-hdr-title { font-size: 12px; font-weight: 600; color: var(--orch-fg-2); flex: 1; }
-        .pg-lightbox-hdr-btn {
-          display: inline-flex; align-items: center; justify-content: center;
-          width: 32px; height: 28px; border-radius: var(--orch-r-sm);
-          background: transparent; border: none; color: var(--orch-fg-3);
-          cursor: pointer; transition: background 120ms, color 120ms;
-        }
-        .pg-lightbox-hdr-btn:hover { background: var(--orch-bg-3); color: var(--orch-fg-1); }
-        .pg-lightbox-hdr-btn svg { width: 15px; height: 15px; stroke-width: 1.5; }
-        .pg-lightbox-body {
+        .pg-lb-close:active { transform: scale(0.95); }
+        .pg-lb-close svg { width: 16px; height: 16px; stroke: rgba(255,255,255,0.85); stroke-width: 2; }
+
+        /* Main image area */
+        .pg-lb-body {
           flex: 1; display: flex; align-items: center; justify-content: center;
-          position: relative; overflow: hidden;
+          position: relative; overflow: hidden; cursor: default;
         }
-        .pg-lightbox-img {
+        .pg-lb-img {
           max-width: 90%; max-height: 90%; object-fit: contain; border-radius: var(--orch-r-lg);
           box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+          transition: opacity 180ms ease, transform 180ms ease;
+          user-select: none; pointer-events: none;
+          animation: pg-img-reveal 180ms ease;
         }
-        .pg-lightbox-nav {
+        @keyframes pg-img-reveal {
+          from { opacity: 0.4; transform: scale(0.98); }
+          to   { opacity: 1;  transform: scale(1); }
+        }
+
+        /* Prev/Next arrows */
+        .pg-lb-nav {
           position: absolute; top: 50%; transform: translateY(-50%);
           display: inline-flex; align-items: center; justify-content: center;
-          width: 40px; height: 40px; border-radius: 50%;
-          background: rgba(255,255,255,0.08); border: none;
-          color: rgba(255,255,255,0.7); cursor: pointer; transition: background 120ms, color 120ms;
+          width: 44px; height: 44px; border-radius: 50%;
+          background: rgba(255,255,255,0.06);
+          backdrop-filter: blur(12px) saturate(1.4);
+          -webkit-backdrop-filter: blur(12px) saturate(1.4);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.65); cursor: pointer;
+          transition: background 150ms, color 150ms, transform 150ms, border-color 150ms;
         }
-        .pg-lightbox-nav:hover { background: rgba(255,255,255,0.15); color: #fff; }
-        .pg-lightbox-nav svg { width: 18px; height: 18px; stroke-width: 1.5; }
-        .pg-lightbox-prev { left: 16px; }
-        .pg-lightbox-next { right: 16px; }
-        .pg-lightbox-ftr {
-          display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 44px;
-          background: rgba(11,11,11,0.95); border-top: 1px solid var(--orch-line-1); flex-shrink: 0;
+        .pg-lb-nav:hover {
+          background: rgba(255,255,255,0.14);
+          border-color: rgba(255,255,255,0.2);
+          color: #fff; transform: translateY(-50%) scale(1.06);
         }
-        .pg-lightbox-ftr-btn {
-          display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-          height: 30px; padding: 0 12px; border-radius: var(--orch-r-md);
-          background: var(--orch-bg-3); border: 1px solid var(--orch-line-2);
-          color: var(--orch-fg-2); font-family: var(--heros-editor-font); font-size: 11px;
-          font-weight: 500; cursor: pointer; transition: background 120ms, color 120ms;
+        .pg-lb-nav:active { transform: translateY(-50%) scale(0.96); }
+        .pg-lb-nav svg { width: 20px; height: 20px; stroke-width: 1.75; }
+        .pg-lb-prev { left: 16px; }
+        .pg-lb-next { right: 16px; }
+
+        /* Image info overlay — bottom left of image */
+        .pg-lb-info {
+          position: absolute; bottom: 16px; left: 16px;
+          display: flex; flex-direction: column; gap: 3px;
+          pointer-events: none;
+          background: rgba(8,9,11,0.5);
+          backdrop-filter: blur(12px) saturate(1.5);
+          -webkit-backdrop-filter: blur(12px) saturate(1.5);
+          border: 1px solid rgba(255,255,255,0.08);
+          padding: 8px 12px;
+          border-radius: var(--orch-r-md);
         }
-        .pg-lightbox-ftr-btn:hover { background: var(--orch-bg-4); color: var(--orch-fg-1); }
-        .pg-lightbox-ftr-btn svg { width: 13px; height: 13px; stroke-width: 1.5; }
-        .pg-lightbox-counter { margin-left: auto; font-size: 11px; color: var(--orch-fg-3); }
+        .pg-lb-info-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+        .pg-lb-info-meta { font-size: 11px; color: rgba(255,255,255,0.55); }
+
+        /* Keyboard hint */
+        .pg-lb-hint {
+          position: absolute; bottom: 16px; right: 16px;
+          font-size: 10px; color: rgba(255,255,255,0.3);
+          pointer-events: none;
+        }
+
+        /* Neighboring thumbnails strip */
+        .pg-lb-strip {
+          height: 90px; flex-shrink: 0;
+          display: flex; align-items: center; justify-content: center;
+          gap: 8px; padding: 0 16px;
+          background: rgba(8,9,11,0.65);
+          backdrop-filter: blur(16px) saturate(1.5);
+          -webkit-backdrop-filter: blur(16px) saturate(1.5);
+          border-top: 1px solid rgba(255,255,255,0.07);
+          overflow-x: auto;
+        }
+        .pg-lb-strip::-webkit-scrollbar { height: 3px; }
+        .pg-lb-strip::-webkit-scrollbar-track { background: transparent; }
+        .pg-lb-strip::-webkit-scrollbar-thumb { background: var(--orch-bg-4); border-radius: 2px; }
+        .pg-lb-strip-thumb {
+          height: 72px; width: 96px; border-radius: var(--orch-r-sm); overflow: hidden;
+          cursor: pointer; flex-shrink: 0; opacity: 0.45;
+          transition: opacity 150ms, transform 150ms, box-shadow 150ms;
+          border: 2px solid transparent;
+        }
+        .pg-lb-strip-thumb:hover { opacity: 0.85; transform: scale(1.04); }
+        .pg-lb-strip-thumb.active { opacity: 1; border-color: var(--orch-acc-hi); transform: scale(1.06); }
+        .pg-lb-strip-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .pg-lb-strip-thumb.current { border-color: rgba(255,255,255,0.5); }
       `}</style>
 
       {/* ── Title bar ────────────────────────────────────────────────────── */}
@@ -514,16 +945,43 @@ function PhotoGallery() {
 
       {/* ── Toolbar ─────────────────────────────────────────────────────── */}
       <div className="pg-toolbar">
-        <button className="pg-toolbar-btn" onClick={() => setSidebarOpen(!sidebarOpen)} title="Toggle sidebar">
-          <ChevronLeft size={15} style={{ transform: sidebarOpen ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 200ms" }} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className="pg-toolbar-btn" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <ChevronLeft size={15} style={{ transform: sidebarOpen ? "rotate(0deg)" : "rotate(180deg)", transition: "transform 200ms" }} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">{sidebarOpen ? "Hide sidebar" : "Show sidebar"}</TooltipContent>
+        </Tooltip>
         <div className="pg-toolbar-sep" />
         <button className="pg-toolbar-btn"><ChevronLeft size={15} /> Back</button>
         <button className="pg-toolbar-btn"><Edit size={15} /> Edit & Create</button>
         <button className="pg-toolbar-btn"><SlidersHorizontal size={15} /> Adjust</button>
         <div className="pg-toolbar-sep" />
-        <button className={`pg-toolbar-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => setViewMode("grid")} title="Grid view"><Grid3x3 size={15} /></button>
-        <button className={`pg-toolbar-btn ${viewMode === "list" ? "active" : ""}`} onClick={() => setViewMode("list")} title="List view"><List size={15} /></button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className={`pg-toolbar-btn ${viewMode === "grid" ? "active" : ""}`} onClick={() => setViewMode("grid")}>
+              <Grid3x3 size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">Grid view</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className={`pg-toolbar-btn ${viewMode === "dense" ? "active" : ""}`} onClick={() => setViewMode("dense")}>
+              <Grid3x3 size={15} style={{ transform: "scale(0.8)" }} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">Dense grid</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className={`pg-toolbar-btn ${viewMode === "list" ? "active" : ""}`} onClick={() => setViewMode("list")}>
+              <List size={15} />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center">List view</TooltipContent>
+        </Tooltip>
         <div className="pg-toolbar-sep" />
         <div className="pg-search-wrap">
           <Search size={13} />
@@ -557,10 +1015,13 @@ function PhotoGallery() {
           )}
           {sidebarTab === "albums" && (
             <>
-              <div className="pg-sidebar-section">Albums</div>
-              {ALBUMS.map((album) => (
-                <div key={album.id} className={`pg-sidebar-item ${selectedAlbum === album.id ? "active" : ""}`} onClick={() => setSelectedAlbum(album.id)}>
-                  <FolderOpen size={16} /><span>{album.name}</span><span className="pg-sidebar-item-count">{album.count}</span>
+              <div className="pg-sidebar-section">Albums <button className="pg-sidebar-add-btn" onClick={() => setCreateAlbumOpen(true)} title="New album"><span className="pg-sidebar-add-icon">+</span></button></div>
+              {customAlbums.length === 0 && (
+                <div className="pg-sidebar-empty">No albums yet — click + to create one</div>
+              )}
+              {customAlbums.map((album) => (
+                <div key={album.id} className="pg-sidebar-item" onClick={() => setSelectedAlbum(album.id)}>
+                  <FolderOpen size={16} /><span>{album.name}</span><span className="pg-sidebar-item-count">{album.photoIds.length}</span>
                 </div>
               ))}
             </>
@@ -579,10 +1040,19 @@ function PhotoGallery() {
 
         {/* Center + right date panel */}
         <div className="pg-content">
-          {/* Main grid/list */}
           <div className="pg-main">
-            {viewMode === "grid" ? (
+            {activePage === "audio" ? (
+              <AudioPage />
+            ) : viewMode === "grid" ? (
               <div className="pg-masonry">
+                {filteredPhotos.map((photo, idx) => (
+                  <div key={photo.id} className="pg-masonry-item">
+                    <GridThumb photo={photo} idx={idx} />
+                  </div>
+                ))}
+              </div>
+            ) : viewMode === "dense" ? (
+              <div className="pg-masonry pg-masonry-dense">
                 {filteredPhotos.map((photo, idx) => (
                   <div key={photo.id} className="pg-masonry-item">
                     <GridThumb photo={photo} idx={idx} />
@@ -594,7 +1064,7 @@ function PhotoGallery() {
             )}
           </div>
 
-          {/* Right date filter panel */}
+          {/* Right date filter panel — Windows Photos style vertical timeline */}
           <div className={`pg-date-panel ${dateFilterOpen ? "" : "collapsed"}`}>
             <div className="pg-date-panel-hdr">
               <Calendar size={12} />
@@ -603,26 +1073,23 @@ function PhotoGallery() {
                 <span className="pg-date-clear" onClick={clearDateFilter}>Clear</span>
               )}
             </div>
-            {allMonthGroups.map((group) => {
-              const yr = group.key.split(" ")[1];
-              const mo = group.key.split(" ")[0];
-              const isSelected = selectedMonths.has(group.key);
-              return (
-                <div key={group.key}>
-                  <div className="pg-date-yr">{yr}</div>
+            <div className="pg-timeline">
+              {allMonthGroups.map((group) => {
+                const yr = group.key.split(" ")[1];
+                const mo = group.key.split(" ")[0];
+                const isSelected = selectedMonths.has(group.key);
+                return (
                   <div
-                    className={`pg-date-mo ${isSelected ? "selected" : ""}`}
+                    key={group.key}
+                    className={`pg-tl-dot ${isSelected ? "selected" : ""}`}
                     onClick={() => toggleMonth(group.key)}
+                    title={`${mo} ${yr}`}
                   >
-                    <div className="pg-date-mo-check">
-                      {isSelected && <ChevronDown size={9} strokeWidth={3} />}
-                    </div>
-                    <span className="pg-date-mo-label">{mo}</span>
-                    <span className="pg-date-mo-count">{group.photos.length}</span>
+                    <div className="pg-tl-dot-inner" />
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -631,36 +1098,211 @@ function PhotoGallery() {
       <div className="pg-statusbar">
         <span><Image size={12} /> {filteredPhotos.length} items</span>
         {selectedMonths.size > 0 && <span><Calendar size={12} /> {selectedMonths.size} month{selectedMonths.size > 1 ? "s" : ""} selected</span>}
-        <span style={{ marginLeft: "auto" }}>Sorted by {sortBy}</span>
+        <span style={{ marginLeft: "auto" }}>{viewMode === "dense" ? "Dense" : viewMode === "grid" ? "Grid" : "List"} · Sorted by {sortBy}</span>
       </div>
 
       {/* ── Lightbox ───────────────────────────────────────────────────── */}
-      {lightboxOpen && (
-        <div className="pg-lightbox">
-          <div className="pg-lightbox-hdr">
-            <span className="pg-lightbox-hdr-title">{filteredPhotos[lightboxIndex]?.name}</span>
-            <button className="pg-lightbox-hdr-btn" title="Zoom in"><ZoomIn /></button>
-            <button className="pg-lightbox-hdr-btn" title="Zoom out"><ZoomOut /></button>
-            <button className="pg-lightbox-hdr-btn" title="Rotate"><RotateCcw /></button>
-            <button className="pg-lightbox-hdr-btn" title="Info"><Info /></button>
-            <button className="pg-lightbox-hdr-btn" onClick={closeLightbox} title="Close"><X /></button>
+      <Dialog open={lightboxOpen} onOpenChange={(open) => !open && closeLightbox()}>
+        <DialogContent
+          fullscreen
+          className="bg-transparent shadow-none border-0 p-0"
+          onWheel={handleWheel}
+        >
+          {/* Close button — circle + X, top right */}
+          <button className="pg-lb-close" onClick={closeLightbox} title="Close (Esc)">
+            <X />
+          </button>
+
+          {/* Main image area */}
+          <div className="pg-lb-body">
+            <button className="pg-lb-nav pg-lb-prev" onClick={prevPhoto} title="Previous (←)">
+              <ChevronLeft />
+            </button>
+
+            <img
+              className="pg-lb-img"
+              src={filteredPhotos[lightboxIndex]?.url}
+              alt={filteredPhotos[lightboxIndex]?.name}
+              draggable={false}
+            />
+
+            <button className="pg-lb-nav pg-lb-next" onClick={nextPhoto} title="Next (→)">
+              <ChevronRight />
+            </button>
+
+            {/* Image info bottom left */}
+            <div className="pg-lb-info">
+              <span className="pg-lb-info-name">{filteredPhotos[lightboxIndex]?.name}</span>
+              <span className="pg-lb-info-meta">{filteredPhotos[lightboxIndex]?.date} · {filteredPhotos[lightboxIndex]?.size}</span>
+            </div>
+
+            {/* Keyboard hint bottom right */}
+            <span className="pg-lb-hint">← → scroll to navigate · Esc to close</span>
           </div>
-          <div className="pg-lightbox-body">
-            <button className="pg-lightbox-nav pg-lightbox-prev" onClick={prevPhoto}><ChevronLeft /></button>
-            <img className="pg-lightbox-img" src={filteredPhotos[lightboxIndex]?.url} alt={filteredPhotos[lightboxIndex]?.name} />
-            <button className="pg-lightbox-nav pg-lightbox-next" onClick={nextPhoto}><ChevronRight /></button>
+
+          {/* Neighboring thumbnails strip */}
+          <div className="pg-lb-strip">
+            {getNeighborThumbs().map(({ photo, idx }) => {
+              const isCurrent = idx === lightboxIndex;
+              const isHovered = idx === hoveredNeighborIdx;
+              return (
+                <div
+                  key={photo.id}
+                  className={`pg-lb-strip-thumb ${isCurrent ? "current" : ""} ${isHovered && !isCurrent ? "active" : ""}`}
+                  onClick={() => goToPhoto(idx)}
+                  onMouseEnter={() => setHoveredNeighborIdx(idx)}
+                  onMouseLeave={() => setHoveredNeighborIdx(null)}
+                >
+                  <img src={photo.url} alt={photo.name} draggable={false} />
+                </div>
+              );
+            })}
           </div>
-          <div className="pg-lightbox-ftr">
-            <button className="pg-lightbox-ftr-btn"><Heart size={13} /> Favorite</button>
-            <button className="pg-lightbox-ftr-btn"><Share2 size={13} /> Share</button>
-            <button className="pg-lightbox-ftr-btn"><Edit size={13} /> Edit</button>
-            <button className="pg-lightbox-ftr-btn"><Download size={13} /> Save</button>
-            <button className="pg-lightbox-ftr-btn"><Trash2 size={13} /> Delete</button>
-            <span className="pg-lightbox-counter">{lightboxIndex + 1} / {filteredPhotos.length}</span>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create Album Dialog ─────────────────────────────────────────── */}
+      <Dialog open={createAlbumOpen} onOpenChange={setCreateAlbumOpen}>
+        <DialogContent className="pg-dialog-create-album">
+          <div className="pg-dialog-title">Create Album</div>
+          <input
+            className="pg-dialog-input"
+            type="text"
+            placeholder="Album name..."
+            value={newAlbumName}
+            onChange={(e) => setNewAlbumName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newAlbumName.trim()) {
+                const newAlbum: CustomAlbum = { id: Date.now(), name: newAlbumName.trim(), photoIds: [] };
+                setCustomAlbums(prev => [...prev, newAlbum]);
+                setNewAlbumName("");
+                setCreateAlbumOpen(false);
+                setSidebarTab("albums");
+              }
+            }}
+            autoFocus
+          />
+          <div className="pg-dialog-actions">
+            <button className="pg-dialog-btn-cancel" onClick={() => { setCreateAlbumOpen(false); setNewAlbumName(""); }}>Cancel</button>
+            <button className="pg-dialog-btn-create" onClick={() => {
+              if (!newAlbumName.trim()) return;
+              const newAlbum: CustomAlbum = { id: Date.now(), name: newAlbumName.trim(), photoIds: [] };
+              setCustomAlbums(prev => [...prev, newAlbum]);
+              setNewAlbumName("");
+              setCreateAlbumOpen(false);
+              setSidebarTab("albums");
+            }}>Create</button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Context menu ─────────────────────────────────────────────────── */}
+      {contextMenu && (
+        <>
+          <div className="pg-ctx-overlay" onClick={closeContextMenu} />
+          <div className="pg-context-menu" style={{ top: contextMenu.y, left: contextMenu.x }}>
+            <div className="pg-ctx-item" onClick={() => contextAction("open", contextMenu.photo)}>
+              <Maximize2 size={13} /> Open
+            </div>
+            <div className="pg-ctx-item" onClick={() => contextAction("open", contextMenu.photo)}>
+              <FolderOpen size={13} /> Open file location
+            </div>
+            <div className="pg-ctx-sep" />
+            <div className="pg-ctx-item" onClick={() => contextAction("select", contextMenu.photo)}>
+              <CheckSquare size={13} /> {selectedPhotos.has(contextMenu.photo.id) ? "Deselect" : "Select"}
+            </div>
+            <div className="pg-ctx-sep" />
+            <div className="pg-ctx-item" onClick={() => contextAction("copy_image", contextMenu.photo)}>
+              <Image size={13} /> Copy image
+            </div>
+            <div className="pg-ctx-item" onClick={() => contextAction("copy_path", contextMenu.photo)}>
+              <Share2 size={13} /> Copy path
+            </div>
+            <div className="pg-ctx-sep" />
+            <div className="pg-ctx-item" onClick={() => contextAction("favorite", contextMenu.photo)}>
+              <Heart size={13} /> {contextMenu.photo.rating === 5 ? "Unfavorite" : "Favorite"}
+            </div>
+            {/* Move to album — nested submenu, stays open on hover */}
+            <div
+              className="pg-ctx-sub-wrapper"
+              onMouseEnter={() => {
+                if (submenuTimeoutRef.current) clearTimeout(submenuTimeoutRef.current);
+                setContextSubmenu({ x: 0, y: 0 });
+              }}
+              onMouseLeave={() => {
+                submenuTimeoutRef.current = setTimeout(() => setContextSubmenu(null), 120);
+              }}
+            >
+              <div className="pg-ctx-item pg-ctx-submenu-parent">
+                <FolderOpen size={13} /> Move to album
+                <ChevronRight size={11} style={{ marginLeft: "auto" }} />
+                <div
+                  className={`pg-submenu${contextSubmenu ? " pg-submenu-visible" : ""}`}
+                  onMouseEnter={() => {
+                    if (submenuTimeoutRef.current) clearTimeout(submenuTimeoutRef.current);
+                  }}
+                  onMouseLeave={() => {
+                    submenuTimeoutRef.current = setTimeout(() => setContextSubmenu(null), 120);
+                  }}
+                >
+                  <div className="pg-submenu-search">
+                    <Search size={11} />
+                    <input
+                      type="text"
+                      placeholder="Search albums..."
+                      value={albumSearch}
+                      onChange={(e) => setAlbumSearch(e.target.value)}
+                      onMouseEnter={() => {
+                        if (submenuTimeoutRef.current) clearTimeout(submenuTimeoutRef.current);
+                      }}
+                    />
+                  </div>
+                  <div className="pg-submenu-list">
+                    {customAlbums.filter(a => a.name.toLowerCase().includes(albumSearch.toLowerCase())).length > 0 ? (
+                      customAlbums.filter(a => a.name.toLowerCase().includes(albumSearch.toLowerCase())).map(album => (
+                        <div
+                          key={album.id}
+                          className="pg-ctx-item"
+                          onClick={() => {
+                            setCustomAlbums(prev =>
+                              prev.map(a =>
+                                a.id === album.id
+                                  ? { ...a, photoIds: a.photoIds.includes(contextMenu!.photo.id) ? a.photoIds : [...a.photoIds, contextMenu!.photo.id] }
+                                  : a
+                              )
+                            );
+                            setContextMenu(null);
+                          }}
+                        >
+                          <FolderOpen size={13} /> {album.name}
+                          <span style={{ marginLeft: "auto", fontSize: "10px", color: "rgba(255,255,255,0.3)" }}>{album.photoIds.length}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{ padding: "8px 12px", fontSize: "11px", color: "rgba(255,255,255,0.3)", textAlign: "center" }}>No albums yet</div>
+                    )}
+                    <div
+                      className="pg-ctx-item pg-ctx-add-album"
+                      onClick={() => { setContextMenu(null); setCreateAlbumOpen(true); }}
+                    >
+                      <span className="pg-sidebar-add-icon">+</span> Create new album
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="pg-ctx-sep" />
+            <div className="pg-ctx-item pg-ctx-danger" onClick={() => contextAction("delete", contextMenu.photo)}>
+              <Trash2 size={13} /> Delete
+            </div>
+          </div>
+        </>
+      )}
           </div>
         </div>
-      )}
+      </div>
     </div>
+    </TooltipProvider>
   );
 }
 

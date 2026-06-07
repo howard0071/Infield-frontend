@@ -1,0 +1,293 @@
+@import "tailwindcss";
+
+@theme {
+  /* ── Match existing --orch-* CSS variable palette ───────────────────── */
+  --color-orch-bg-0: #0c0c0e;
+  --color-orch-bg-1: #111116;
+  --color-orch-bg-2: #18181f;
+  --color-orch-bg-3: #222230;
+  --color-orch-bg-4: #2e2e40;
+
+  --color-orch-fg-1: #eeeeef;
+  --color-orch-fg-2: #b0b0bc;
+  --color-orch-fg-3: #686880;
+  --color-orch-fg-4: #44445a;
+
+  --color-orch-line-1: rgba(255, 255, 255, 0.08);
+  --color-orch-line-2: rgba(255, 255, 255, 0.05);
+
+  --color-orch-acc-hi: #3b6fff;
+  --color-orch-acc-lo: rgba(59, 111, 255, 0.18);
+
+  --color-shell-outer-bg: #08080a;
+
+  /* ── Border radius tokens ──────────────────────────────────────────────── */
+  --radius-orch-sm: 4px;
+  --radius-orch-md: 7px;
+  --radius-orch-lg: 10px;
+}
+
+/* ── Shell / card layer ─────────────────────────────────────────────── */
+.notes-backup-shell {
+  height: 100vh;
+  height: 100dvh;
+  width: 100%;
+  display: flex;
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 14px;
+  padding-left: 0;
+  background: var(--shell-outer-bg, #08080a);
+  gap: 0;
+  overflow: hidden;
+}
+
+/* ── Left page navigation rail ──────────────────────────────────────── */
+.page-nav-rail {
+  width: 52px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 0;
+  gap: 2px;
+  background: transparent;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  transition: width 200ms ease;
+}
+.page-nav-rail:not(.collapsed) {
+  width: 160px;
+  align-items: stretch;
+}
+
+.page-nav-rail__toggle {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: var(--orch-fg-3);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.page-nav-rail__toggle:hover {
+  background: var(--orch-bg-2);
+  color: var(--orch-fg-1);
+}
+
+.page-nav-rail__item {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 10px;
+  color: var(--orch-fg-3);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  position: relative;
+  overflow: hidden;
+  padding: 0;
+  white-space: nowrap;
+}
+
+.page-nav-rail:not(.collapsed) .page-nav-rail__item {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 12px;
+}
+
+.page-nav-rail__label {
+  opacity: 0;
+  transition: opacity 150ms;
+  font-size: 13px;
+  font-weight: 500;
+  color: inherit;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.page-nav-rail:not(.collapsed) .page-nav-rail__label {
+  opacity: 1;
+}
+
+.page-nav-rail__item:hover {
+  background: var(--orch-bg-2);
+  color: var(--orch-fg-1);
+}
+
+.page-nav-rail__item.active {
+  background: var(--orch-bg-2);
+  color: var(--orch-acc-hi);
+}
+
+.page-nav-rail__item svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.6;
+}
+
+.page-nav-rail__divider {
+  width: 24px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 4px 0;
+}
+
+.page-nav-rail__spacer {
+  flex: 1;
+}
+
+.notes-backup-shell__inner {
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  min-height: 100%;
+  min-height: calc(100dvh - 28px);
+  max-width: 100%;
+  padding: 0;
+}
+
+.heros-glass-card.notes-unified-card {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--shell-main-border, rgba(255, 255, 255, 0.13));
+  border-radius: var(--shell-main-radius, 12px);
+  background: var(--shell-main-bg, #0d0d0d);
+  box-shadow: var(--shell-main-shadow,
+    -10px 0 28px rgba(0, 0, 0, 0.28),
+    0 22px 52px rgba(0, 0, 0, 0.42),
+    0 2px 8px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045));
+}
+
+.notes-unified-card__editor {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Create Album Dialog ───────────────────── */
+.pg-dialog-create-album {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 300px;
+  padding: 24px;
+  background: var(--orch-bg-2) !important;
+  border: 1px solid var(--orch-border-soft) !important;
+  border-radius: var(--shell-main-radius, 12px) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.pg-dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--orch-fg-1);
+}
+
+.pg-dialog-input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--orch-fg-1);
+  background: var(--orch-bg-1);
+  border: 1px solid var(--orch-border-soft);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.pg-dialog-input:focus {
+  border-color: var(--orch-acc-hi);
+}
+
+.pg-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pg-dialog-btn-cancel,
+.pg-dialog-btn-create {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.pg-dialog-btn-cancel {
+  color: var(--orch-fg-2);
+  background: var(--orch-bg-1);
+  border: 1px solid var(--orch-border-soft);
+}
+
+.pg-dialog-btn-cancel:hover {
+  background: var(--orch-bg-3);
+}
+
+.pg-dialog-btn-create {
+  color: #fff;
+  background: var(--orch-acc-hi);
+  border: none;
+}
+
+.pg-dialog-btn-create:hover {
+  opacity: 0.85;
+}
+
+/* ── Sidebar add button & empty state ─────── */
+.pg-sidebar-add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--orch-border-soft);
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.pg-sidebar-add-btn:hover {
+  opacity: 1;
+  background: var(--orch-bg-2);
+}
+
+.pg-sidebar-add-icon {
+  font-size: 14px;
+  line-height: 1;
+  color: var(--orch-fg-2);
+}
+
+.pg-sidebar-empty {
+  padding: 12px 8px;
+  font-size: 11px;
+  color: var(--orch-fg-3);
+  text-align: center;
+}
+
+/* ── Context menu "add album" item ───────── */
+.pg-ctx-add-album {
+  color: var(--orch-acc-hi) !important;
+  border-top: 1px solid var(--orch-border-soft);
+  margin-top: 4px;
+  padding-top: 8px !important;
+}
