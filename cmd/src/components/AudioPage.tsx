@@ -14,7 +14,7 @@ export function AudioPage({ className = "" }: AudioPageProps) {
   const [hasRecording, setHasRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [amplitude, setAmplitude] = useState(1);
-  const [waveStyle, setWaveStyle] = useState<"classic" | "ios9">("ios9");
+  const [waveStyle, setWaveStyle] = useState<"classic" | "ios9">("classic");
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const animationRef = useRef<number | null>(null);
