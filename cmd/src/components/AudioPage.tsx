@@ -38,7 +38,7 @@ export function AudioPage({ className = "" }: AudioPageProps) {
       autostart: true,
       amplitude: amplitude,
       speed: 0.2,
-      color: isRecording ? "#ef4444" : "#3b6fff",
+      color: "#3b6fff",
     });
 
     return () => {
@@ -89,9 +89,6 @@ export function AudioPage({ className = "" }: AudioPageProps) {
       if (siriWaveRef.current) {
         siriWaveRef.current.setAmplitude(1);
         siriWaveRef.current.setSpeed(0.2);
-        if (siriWaveRef.current) {
-          siriWaveRef.current.setColor("#3b6fff");
-        }
       }
     }
     return () => {
@@ -104,7 +101,6 @@ export function AudioPage({ className = "" }: AudioPageProps) {
     setRecordingTime(0);
     setHasRecording(true);
     if (siriWaveRef.current) {
-      siriWaveRef.current.setColor("#ef4444");
       siriWaveRef.current.setSpeed(0.5);
     }
   };
@@ -112,7 +108,6 @@ export function AudioPage({ className = "" }: AudioPageProps) {
   const stopRecording = () => {
     setIsRecording(false);
     if (siriWaveRef.current) {
-      siriWaveRef.current.setColor("#3b6fff");
       siriWaveRef.current.setSpeed(0.2);
     }
   };
