@@ -35,6 +35,7 @@ import {
   FileText,
   Network,
 } from "lucide-react";
+import { AudioPage } from "./src/components/AudioPage";
 
 // ─── Sample photo data (varied aspect ratios for masonry) ─────────────────────
 const ALL_PHOTOS = [
@@ -1040,7 +1041,9 @@ function PhotoGallery() {
         {/* Center + right date panel */}
         <div className="pg-content">
           <div className="pg-main">
-            {viewMode === "grid" ? (
+            {activePage === "audio" ? (
+              <AudioPage />
+            ) : viewMode === "grid" ? (
               <div className="pg-masonry">
                 {filteredPhotos.map((photo, idx) => (
                   <div key={photo.id} className="pg-masonry-item">
