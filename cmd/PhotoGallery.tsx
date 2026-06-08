@@ -36,6 +36,7 @@ import {
   Network,
 } from "lucide-react";
 import { AudioPage } from "./src/components/AudioPage";
+import { PhotosPage } from "./src/components/PhotosPage";
 
 // ─── Sample photo data (varied aspect ratios for masonry) ─────────────────────
 const ALL_PHOTOS = [
@@ -122,7 +123,7 @@ function PhotoGallery() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [activePage, setActivePage] = useState<"gallery" | "audio" | "notes" | "search" | "graph">("gallery");
+  const [activePage, setActivePage] = useState<"gallery" | "photos" | "audio" | "notes" | "search" | "graph">("gallery");
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [dateFilterOpen, setDateFilterOpen] = useState(true);
   const [selectedMonths, setSelectedMonths] = useState<Set<string>>(new Set());
@@ -401,6 +402,19 @@ function PhotoGallery() {
             </div>
           </TooltipTrigger>
           <TooltipContent side="right" align="center">Gallery</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              className={`page-nav-rail__item ${activePage === "photos" ? "active" : ""}`}
+              onClick={() => setActivePage("photos")}
+            >
+              <Image size={18} />
+              <span className="page-nav-rail__label">Photos</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right" align="center">Photos</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -1043,6 +1057,8 @@ function PhotoGallery() {
           <div className="pg-main">
             {activePage === "audio" ? (
               <AudioPage />
+            ) : activePage === "photos" ? (
+              <PhotosPage />
             ) : viewMode === "grid" ? (
               <div className="pg-masonry">
                 {filteredPhotos.map((photo, idx) => (
