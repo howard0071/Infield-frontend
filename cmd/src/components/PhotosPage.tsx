@@ -2,28 +2,24 @@ import React, { useState, useMemo } from "react";
 import {
   Image,
   Heart,
-  Star,
   Video,
   FolderOpen,
   Calendar,
   ChevronRight,
   User,
-  SlidersHorizontal,
   Grid3x3,
-  List,
-  Maximize2,
   Download,
-  Trash2,
-  Share2,
-  MoreHorizontal,
   Check,
-  X,
   ZoomIn,
   ZoomOut,
-  RotateCcw,
   Info,
   Layers,
+  X,
 } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 interface Photo {
   id: number;
@@ -41,7 +37,6 @@ interface PhotosCollection {
   label: string;
   icon: React.ReactNode;
   count?: number;
-  accent?: boolean;
 }
 
 // ─── Local screenshot photos ─────────────────────────────────────────────────
@@ -125,7 +120,7 @@ const COLLECTIONS: PhotosCollection[] = [
   { id: "recent", label: "Recent", icon: <Calendar size={15} />, count: 3 },
   { id: "screenshots", label: "Screenshots", icon: <Grid3x3 size={15} />, count: 6 },
   { id: "albums", label: "Albums", icon: <FolderOpen size={15} /> },
-  { id: "onedrive", label: "OneDrive", icon: <Layers size={15} />, accent: true },
+  { id: "onedrive", label: "OneDrive", icon: <Layers size={15} /> },
   { id: "folder", label: "Import from disk", icon: <Download size={15} /> },
 ];
 
@@ -142,51 +137,29 @@ function groupByMonth(photos: Photo[]) {
 }
 
 // ─── Thumbnail component ─────────────────────────────────────────────────────
-function PhotoThumb({ photo, selected, onSelect, onClick }: {
+function PhotoThumb({ photo, selected, onClick }: {
   photo: Photo;
   selected: boolean;
-  onSelect: (id: number) => void;
   onClick: (photo: Photo) => void;
 }) {
   return (
-    <div className="photos-thumb" onClick={() => onClick(photo)}>
-      <div className="photos-thumb-inner">
-        <img
-          src={photo.url}
-          alt={photo.name}
-          loading="lazy"
-          draggable={false}
-        />
-        {selected && (
-          <div className="photos-thumb-check">
-            <Check size={12} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Lightbox component ─────────────────────────────────────────────────────
-function PhotosLightbox({ photo, photos, onClose, onNext, onPrev }: {
-  photo: Photo;
-  photos: Photo[];
-  onClose: () => void;
-  onNext: () => void;
-  onPrev: () => void;
-}) {
-  return (
-    <div className="photos-lb" onClick={onClose}>
-      <button className="photos-lb-close" onClick={onClose}><X size={18} /></button>
-      <button className="photos-lb-prev" onClick={(e) => { e.stopPropagation(); onPrev(); }}><ChevronRight size={24} style={{ transform: "rotate(180deg)" }} /></button>
-      <div className="photos-lb-body" onClick={(e) => e.stopPropagation()}>
-        <img src={photo.url} alt={photo.name} />
-      </div>
-      <button className="photos-lb-next" onClick={(e) => { e.stopPropagation(); onNext(); }}><ChevronRight size={24} /></button>
-      <div className="photos-lb-info">
-        <span className="photos-lb-name">{photo.name}</span>
-        <span className="photos-lb-meta">{photo.date} · {photo.size}</span>
-      </div>
+    <div
+      className="relative overflow-hidden rounded cursor-pointer group"
+      style={{ aspectRatio: "16/9" }}
+      onClick={() => onClick(photo)}
+    >
+      <img
+        src={photo.url}
+        alt={photo.name}
+        loading="lazy"
+        draggable={false}
+        className="w-full h-full object-cover transition-transform duration-150 group-hover:scale-[1.03] select-none"
+      />
+      {selected && (
+        <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[--orch-acc-hi] flex items-center justify-center">
+          <Check size={11} className="text-white" />
+        </div>
+      )}
     </div>
   );
 }
@@ -209,19 +182,11 @@ export function PhotosPage() {
 
   const monthGroups = useMemo(() => groupByMonth(filteredPhotos), [filteredPhotos]);
 
-  const toggleSelect = (id: number) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   const openLightbox = (photo: Photo) => {
     const idx = filteredPhotos.findIndex(p => p.id === photo.id);
     setLightboxIdx(idx);
   };
+
   const closeLightbox = () => setLightboxIdx(null);
   const goNext = () => setLightboxIdx(i => i !== null ? Math.min(i + 1, filteredPhotos.length - 1) : null);
   const goPrev = () => setLightboxIdx(i => i !== null ? Math.max(i - 1, 0) : null);
@@ -237,76 +202,116 @@ export function PhotosPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [lightboxIdx]);
 
+  const colBase = "flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-sm transition-colors duration-100";
+  const colInactive = cn(colBase, "text-[--orch-fg-2] hover:bg-white/5 hover:text-[--orch-fg-1]");
+  const colActive = cn(colBase, "bg-[--orch-acc-hi]/15 text-[--orch-acc-hi]");
+
+  const thumbCols = `grid gap-1 ${zoomLevel >= 1.5 ? "grid-cols-3" : zoomLevel >= 1 ? "grid-cols-4" : "grid-cols-5"}`;
+
   return (
-    <div className="photos-page">
+    <TooltipProvider>
+    <div className="flex w-full h-full overflow-hidden bg-[--orch-bg-0]">
+
       {/* ── Left collection rail ───────────────────────────────────── */}
-      <div className="photos-sidebar">
-        <div className="photos-sidebar-hdr">Library</div>
-        <nav className="photos-col-list">
+      <div className="w-[200px] flex-shrink-0 flex flex-col border-r border-white/[0.06] overflow-y-auto pb-4">
+        <div className="px-4 pt-4 pb-2 text-[10px] font-semibold uppercase tracking-widest text-[--orch-fg-3]">
+          Library
+        </div>
+        <nav className="flex flex-col gap-0.5 px-2">
           {COLLECTIONS.map(col => (
             <div
               key={col.id}
-              className={`photos-col-item ${activeCollection === col.id ? "active" : ""}`}
+              className={activeCollection === col.id ? colActive : colInactive}
               onClick={() => setActiveCollection(col.id)}
             >
-              <span className="photos-col-icon">{col.icon}</span>
-              <span className="photos-col-label">{col.label}</span>
+              <span className="flex-shrink-0">{col.icon}</span>
+              <span className="flex-1 truncate text-[13px]">{col.label}</span>
               {col.count !== undefined && (
-                <span className="photos-col-count">{col.count}</span>
+                <span className="text-[11px] text-[--orch-fg-3]">{col.count}</span>
               )}
               {col.id === "onedrive" && (
-                <ChevronRight size={12} className="photos-col-arrow" />
+                <ChevronRight size={11} className="opacity-40 flex-shrink-0" />
               )}
             </div>
           ))}
         </nav>
 
-        <div className="photos-sidebar-divider" />
+        <div className="h-px bg-white/[0.06] my-3 mx-4" />
 
-        {/* People placeholder */}
-        <div className="photos-sidebar-hdr" style={{ padding: "8px 16px 4px" }}>People</div>
-        <div className="photos-people-empty">
+        <div className="px-4 pb-2 text-[10px] font-semibold uppercase tracking-widest text-[--orch-fg-3]">
+          People
+        </div>
+        <div className="flex flex-col items-center gap-2 px-4 py-5 text-[--orch-fg-3]">
           <User size={20} />
-          <span>No people to show</span>
+          <span className="text-[12px] text-center">No people to show</span>
         </div>
       </div>
 
       {/* ── Center content ─────────────────────────────────────────── */}
-      <div className="photos-content">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
         {/* Top bar */}
-        <div className="photos-topbar">
-          <div className="photos-topbar-left">
-            <span className="photos-title">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06] flex-shrink-0">
+          <div className="flex items-baseline gap-3">
+            <span className="text-[17px] font-semibold text-[--orch-fg-1]">
               {COLLECTIONS.find(c => c.id === activeCollection)?.label ?? "Photos"}
             </span>
-            <span className="photos-count">{filteredPhotos.length} items</span>
+            <span className="text-[12px] text-[--orch-fg-3]">{filteredPhotos.length} items</span>
           </div>
-          <div className="photos-topbar-right">
-            <button className="photos-icon-btn" title="Info"><Info size={15} /></button>
-            <button className="photos-icon-btn" title="Zoom out" onClick={() => setZoomLevel(z => Math.max(0.5, z - 0.25))}><ZoomOut size={15} /></button>
-            <button className="photos-icon-btn" title="Zoom in" onClick={() => setZoomLevel(z => Math.min(2, z + 0.25))}><ZoomIn size={15} /></button>
-            <div className="photos-sep" />
-            <button className="photos-icon-btn" title="Select"><Check size={15} /></button>
+          <div className="flex items-center gap-1">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8 text-[--orch-fg-2]">
+                  <Info size={15} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Info</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8 text-[--orch-fg-2]" onClick={() => setZoomLevel(z => Math.max(0.5, z - 0.25))}>
+                  <ZoomOut size={15} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Zoom out</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8 text-[--orch-fg-2]" onClick={() => setZoomLevel(z => Math.min(2, z + 0.25))}>
+                  <ZoomIn size={15} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Zoom in</TooltipContent>
+            </Tooltip>
+
+            <div className="w-px h-4 bg-white/[0.08] mx-1" />
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="size-8 text-[--orch-fg-2]">
+                  <Check size={15} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Select</TooltipContent>
+            </Tooltip>
           </div>
         </div>
 
-        {/* Month groups — Microsoft Photos style */}
-        <div className="photos-scroll">
+        {/* Scrollable photo grid */}
+        <div className="flex-1 overflow-y-auto px-5 py-4">
           {monthGroups.map(group => (
-            <div key={group.key} className="photos-month-group">
-              <div className="photos-month-label">
+            <div key={group.key} className="mb-7">
+              <div className="pb-2.5 text-[13px] font-semibold text-[--orch-fg-2] tracking-wide">
                 {group.label}
               </div>
-              <div
-                className="photos-grid"
-                style={{ "--photos-zoom": zoomLevel } as React.CSSProperties}
-              >
+              <div className={thumbCols}>
                 {group.photos.map(photo => (
                   <PhotoThumb
                     key={photo.id}
                     photo={photo}
                     selected={selected.has(photo.id)}
-                    onSelect={toggleSelect}
                     onClick={openLightbox}
                   />
                 ))}
@@ -315,24 +320,67 @@ export function PhotosPage() {
           ))}
 
           {filteredPhotos.length === 0 && (
-            <div className="photos-empty">
-              <Image size={48} style={{ opacity: 0.2 }} />
-              <p>No photos in this collection</p>
+            <div className="flex flex-col items-center justify-center gap-3 py-20 text-[--orch-fg-3]">
+              <Image size={44} className="opacity-20" />
+              <p className="text-[13px]">No photos in this collection</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Lightbox ───────────────────────────────────────────────── */}
-      {lightboxIdx !== null && filteredPhotos[lightboxIdx] && (
-        <PhotosLightbox
-          photo={filteredPhotos[lightboxIdx]}
-          photos={filteredPhotos}
-          onClose={closeLightbox}
-          onNext={goNext}
-          onPrev={goPrev}
-        />
-      )}
+      {/* ── Lightbox via shadcn Dialog ─────────────────────────────── */}
+      <Dialog open={lightboxIdx !== null} onOpenChange={(open) => !open && closeLightbox()}>
+        <DialogContent
+          fullscreen
+          className="bg-black/90 border-0 p-0"
+        >
+          {/* Close */}
+          <button
+            onClick={closeLightbox}
+            className="absolute right-4 top-4 z-10 w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+          >
+            <X size={17} />
+          </button>
+
+          {/* Prev */}
+          <button
+            onClick={goPrev}
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+          >
+            <ChevronRight size={22} className="rotate-180" />
+          </button>
+
+          {/* Image */}
+          {lightboxIdx !== null && filteredPhotos[lightboxIdx] && (
+            <div className="w-full h-full flex items-center justify-center">
+              <img
+                src={filteredPhotos[lightboxIdx].url}
+                alt={filteredPhotos[lightboxIdx].name}
+                className="max-w-[90vw] max-h-[85vh] object-contain rounded"
+                draggable={false}
+              />
+            </div>
+          )}
+
+          {/* Next */}
+          <button
+            onClick={goNext}
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+          >
+            <ChevronRight size={22} />
+          </button>
+
+          {/* Info */}
+          {lightboxIdx !== null && filteredPhotos[lightboxIdx] && (
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex flex-col items-center gap-0.5 pointer-events-none">
+              <span className="text-[13px] text-white/80 font-medium">{filteredPhotos[lightboxIdx].name}</span>
+              <span className="text-[11px] text-white/40">{filteredPhotos[lightboxIdx].date} · {filteredPhotos[lightboxIdx].size}</span>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
+    </TooltipProvider>
   );
 }
